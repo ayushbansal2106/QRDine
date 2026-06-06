@@ -11,6 +11,7 @@ const categorySchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+      maxlength: 100,
     },
     displayOrder: {
       type: Number,
@@ -25,5 +26,6 @@ const categorySchema = new mongoose.Schema(
 categorySchema.index({ cafeId: 1 });
 categorySchema.index({ cafeId: 1, name: 1 }, { unique: true });
 categorySchema.index({ cafeId: 1, displayOrder: 1 });
+categorySchema.index({ cafeId: 1, displayOrder: 1, createdAt: 1 });
 
 module.exports = mongoose.model('Category', categorySchema);

@@ -35,7 +35,7 @@ const userSchema = new mongoose.Schema(
 );
 
 userSchema.index({ cafeId: 1 });
-userSchema.index({ cafeId: 1, email: 1 }, { unique: true });
+userSchema.index({ email: 1 }, { unique: true });
 userSchema.index({ cafeId: 1, role: 1 });
 
 module.exports = mongoose.model('User', userSchema);

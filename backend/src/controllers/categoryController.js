@@ -6,6 +6,21 @@ const Category = require('../models/Category');
 const MenuItem = require('../models/MenuItem');
 
 const isValidObjectId = (value) => mongoose.Types.ObjectId.isValid(value);
+const DEFAULT_LIST_LIMIT = 20;
+
+const resolveLimit = (value) => {
+  if (value === undefined) {
+    return DEFAULT_LIST_LIMIT;
+  }
+
+  const parsedLimit = Number(value);
+
+  if (!Number.isInteger(parsedLimit) || parsedLimit < 1) {
+    throw new AppError('limit must be a positive integer', 400);
+  }
+
+  return parsedLimit;
+};
 
 const validateCategoryPayload = ({ name, displayOrder }) => {
   const errors = [];
@@ -25,10 +40,14 @@ const validateCategoryPayload = ({ name, displayOrder }) => {
 };
 
 const getCategories = asyncHandler(async (req, res) => {
-  const categories = await Category.find({ cafeId: req.cafeId }).sort({ displayOrder: 1, createdAt: 1 });
+  const limit = resolveLimit(req.query.limit);
+  const categories = await Category.find({ cafeId: req.cafeId })
+    .sort({ displayOrder: 1, createdAt: 1 })
+    .limit(limit);
 
   res.status(200).json({
     count: categories.length,
+    limit,
     categories,
   });
 });

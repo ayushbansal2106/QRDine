@@ -16,11 +16,13 @@ const menuItemSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+      maxlength: 120,
     },
     description: {
       type: String,
       trim: true,
       default: '',
+      maxlength: 500,
     },
     image: {
       type: String,
@@ -46,5 +48,7 @@ menuItemSchema.index({ cafeId: 1 });
 menuItemSchema.index({ cafeId: 1, categoryId: 1 });
 menuItemSchema.index({ cafeId: 1, categoryId: 1, name: 1 }, { unique: true });
 menuItemSchema.index({ cafeId: 1, isAvailable: 1 });
+menuItemSchema.index({ cafeId: 1, createdAt: -1 });
+menuItemSchema.index({ cafeId: 1, categoryId: 1, createdAt: -1 });
 
 module.exports = mongoose.model('MenuItem', menuItemSchema);

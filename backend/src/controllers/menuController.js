@@ -6,6 +6,21 @@ const Category = require('../models/Category');
 const MenuItem = require('../models/MenuItem');
 
 const isValidObjectId = (value) => mongoose.Types.ObjectId.isValid(value);
+const DEFAULT_LIST_LIMIT = 20;
+
+const resolveLimit = (value) => {
+  if (value === undefined) {
+    return DEFAULT_LIST_LIMIT;
+  }
+
+  const parsedLimit = Number(value);
+
+  if (!Number.isInteger(parsedLimit) || parsedLimit < 1) {
+    throw new AppError('limit must be a positive integer', 400);
+  }
+
+  return parsedLimit;
+};
 
 const validateMenuPayload = ({ categoryId, name, price, isAvailable }) => {
   const errors = [];
@@ -32,6 +47,7 @@ const validateMenuPayload = ({ categoryId, name, price, isAvailable }) => {
 
 const getMenu = asyncHandler(async (req, res) => {
   const { categoryId, isAvailable } = req.query;
+  const limit = resolveLimit(req.query.limit);
   const filter = { cafeId: req.cafeId };
 
   if (categoryId) {
@@ -50,10 +66,11 @@ const getMenu = asyncHandler(async (req, res) => {
     filter.isAvailable = isAvailable === 'true';
   }
 
-  const menuItems = await MenuItem.find(filter).sort({ createdAt: -1 });
+  const menuItems = await MenuItem.find(filter).sort({ createdAt: -1 }).limit(limit);
 
   res.status(200).json({
     count: menuItems.length,
+    limit,
     menuItems,
   });
 });

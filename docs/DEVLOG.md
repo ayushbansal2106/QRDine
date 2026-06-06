@@ -157,3 +157,24 @@ Menu
 ### Outcome
 
 Cafe owners can now manage their complete menu catalog securely.
+
+### Sprint 3 Audit Improvements
+
+Completed:
+
+* Global unique user email strategy
+* Compound indexes for category sorting
+* Compound indexes for menu filtering and sorting
+* Category name length validation
+* Menu item name length validation
+* Menu item description length validation
+* Default pagination limits on list endpoints
+
+Validation:
+
+* All existing Sprint 3 tests continue to pass
+* Models validated successfully
+* Tenant isolation unaffected
+
+Outcome:
+Sprint 3 backend considered stable and ready for QR/Table implementation.
