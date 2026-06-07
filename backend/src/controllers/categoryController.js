@@ -153,9 +153,28 @@ const deleteCategory = asyncHandler(async (req, res) => {
   });
 });
 
+const getCategoriesPublic = asyncHandler(async (req, res) => {
+  const { cafeId } = req.query;
+  if (!cafeId) {
+    throw new AppError('cafeId query parameter is required', 400);
+  }
+
+  const limit = resolveLimit(req.query.limit);
+  const categories = await Category.find({ cafeId })
+    .sort({ displayOrder: 1, createdAt: 1 })
+    .limit(limit);
+
+  res.status(200).json({
+    count: categories.length,
+    limit,
+    categories,
+  });
+});
+
 module.exports = {
   getCategories,
   createCategory,
   updateCategory,
   deleteCategory,
+  getCategoriesPublic,
 };

@@ -22,6 +22,16 @@ const orderItemSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    gstPercentage: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
+    gstAmount: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
   },
   {
     _id: false,
@@ -40,6 +50,11 @@ const orderSchema = new mongoose.Schema(
       ref: 'Table',
       required: true,
     },
+    sessionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'DiningSession',
+      default: null,
+    },
     orderNumber: {
       type: String,
       required: true,
@@ -53,15 +68,56 @@ const orderSchema = new mongoose.Schema(
         message: 'Order must contain at least one item',
       },
     },
+    subtotal: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
+    totalGST: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
+    serviceCharge: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
     totalAmount: {
       type: Number,
       required: true,
       min: 0,
     },
+    taxBreakdown: [
+      {
+        percentage: { type: Number, required: true },
+        amount: { type: Number, required: true },
+      },
+    ],
     status: {
       type: String,
-      enum: ['pending', 'preparing', 'ready', 'served', 'cancelled'],
+      enum: ['pending', 'accepted', 'preparing', 'ready', 'served', 'cancelled'],
       default: 'pending',
+    },
+    acceptedAt: {
+      type: Date,
+      default: null,
+    },
+    preparingAt: {
+      type: Date,
+      default: null,
+    },
+    readyAt: {
+      type: Date,
+      default: null,
+    },
+    servedAt: {
+      type: Date,
+      default: null,
+    },
+    cancelledAt: {
+      type: Date,
+      default: null,
     },
   },
   {
@@ -73,5 +129,6 @@ orderSchema.index({ cafeId: 1 });
 orderSchema.index({ cafeId: 1, tableId: 1 });
 orderSchema.index({ cafeId: 1, orderNumber: 1 }, { unique: true });
 orderSchema.index({ cafeId: 1, status: 1, createdAt: -1 });
+orderSchema.index({ sessionId: 1 });
 
 module.exports = mongoose.model('Order', orderSchema);

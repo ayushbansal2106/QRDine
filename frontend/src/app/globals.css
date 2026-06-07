@@ -1,0 +1,78 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #51604f;
+  --color-primary-container: #6a7967;
+  --color-on-primary: #ffffff;
+  --color-background: #fcf9f8;
+  --color-surface: #fcf9f8;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f6f3f2;
+  --color-surface-container: #f0eded;
+  --color-surface-container-high: #eae7e7;
+  --color-surface-container-highest: #e4e2e1;
+  --color-secondary: #5e5e5b;
+  --color-secondary-container: #e1dfdb;
+  --color-on-surface: #1b1c1c;
+  --color-on-surface-variant: #444842;
+  --color-error: #ba1a1a;
+
+  --font-inter: var(--font-inter);
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+
+  --spacing-base: 8px;
+  --spacing-xs: 4px;
+  --spacing-sm: 12px;
+  --spacing-md: 24px;
+  --spacing-lg: 48px;
+  --spacing-xl: 80px;
+  --spacing-gutter: 20px;
+  --spacing-margin-mobile: 20px;
+  --spacing-margin-desktop: 64px;
+}
+
+:root {
+  --background: #fcf9f8;
+  --foreground: #1b1c1c;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter), sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+/* Material Icons styling */
+.material-symbols-outlined {
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 24;
+}
+
+/* Hide scrollbar for category chips */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.card-image-hover:hover {
+  transform: scale(1.05);
+  transition: transform 0.5s ease-in-out;
+}
+
+.image-container {
+  overflow: hidden;
+  border-radius: 0.75rem 0.75rem 0 0;
+}

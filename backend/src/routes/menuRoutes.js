@@ -7,9 +7,13 @@ const {
   createMenuItem,
   updateMenuItem,
   deleteMenuItem,
+  getMenuPublic,
 } = require('../controllers/menuController');
 
 const router = express.Router();
+
+// Public routes (unauthenticated)
+router.get('/public', getMenuPublic);
 
 router.use(protect, tenantMiddleware, authorizeRoles('owner', 'manager'));
 

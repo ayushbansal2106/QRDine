@@ -12,6 +12,11 @@ const tableSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    guestUrl: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     qrCodeUrl: {
       type: String,
       trim: true,

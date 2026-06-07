@@ -22,7 +22,7 @@ const resolveLimit = (value) => {
   return parsedLimit;
 };
 
-const validateMenuPayload = ({ categoryId, name, price, isAvailable }) => {
+const validateMenuPayload = ({ categoryId, name, price, isAvailable, gstPercentage }) => {
   const errors = [];
 
   if (!categoryId || !isValidObjectId(categoryId)) {
@@ -40,6 +40,13 @@ const validateMenuPayload = ({ categoryId, name, price, isAvailable }) => {
 
   if (isAvailable !== undefined && typeof isAvailable !== 'boolean') {
     errors.push('isAvailable must be a boolean value');
+  }
+
+  if (gstPercentage !== undefined) {
+    const parsedGst = Number(gstPercentage);
+    if (!Number.isFinite(parsedGst) || parsedGst < 0 || parsedGst > 100) {
+      errors.push('GST percentage must be a number between 0 and 100');
+    }
   }
 
   return errors;
@@ -76,8 +83,8 @@ const getMenu = asyncHandler(async (req, res) => {
 });
 
 const createMenuItem = asyncHandler(async (req, res) => {
-  const { categoryId, name, description = '', price, image = '', isAvailable = true } = req.body;
-  const errors = validateMenuPayload({ categoryId, name, price, isAvailable });
+  const { categoryId, name, description = '', price, image = '', isAvailable = true, gstPercentage = 0 } = req.body;
+  const errors = validateMenuPayload({ categoryId, name, price, isAvailable, gstPercentage });
 
   if (errors.length > 0) {
     throw new AppError(errors.join('. '), 400);
@@ -105,6 +112,7 @@ const createMenuItem = asyncHandler(async (req, res) => {
     name: normalizedName,
     description: description?.trim() || '',
     price: Number(price),
+    gstPercentage: Number(gstPercentage),
     image: image?.trim() || '',
     isAvailable,
   });
@@ -133,12 +141,14 @@ const updateMenuItem = asyncHandler(async (req, res) => {
   const nextIsAvailable = req.body.isAvailable !== undefined ? req.body.isAvailable : existingMenuItem.isAvailable;
   const nextDescription = req.body.description !== undefined ? req.body.description : existingMenuItem.description;
   const nextImage = req.body.image !== undefined ? req.body.image : existingMenuItem.image;
+  const nextGstPercentage = req.body.gstPercentage !== undefined ? req.body.gstPercentage : existingMenuItem.gstPercentage;
 
   const errors = validateMenuPayload({
     categoryId: nextCategoryId,
     name: nextName,
     price: nextPrice,
     isAvailable: nextIsAvailable,
+    gstPercentage: nextGstPercentage,
   });
 
   if (errors.length > 0) {
@@ -166,6 +176,7 @@ const updateMenuItem = asyncHandler(async (req, res) => {
   existingMenuItem.name = normalizedName;
   existingMenuItem.description = nextDescription?.trim() || '';
   existingMenuItem.price = Number(nextPrice);
+  existingMenuItem.gstPercentage = Number(nextGstPercentage);
   existingMenuItem.image = nextImage?.trim() || '';
   existingMenuItem.isAvailable = nextIsAvailable;
 
@@ -197,9 +208,35 @@ const deleteMenuItem = asyncHandler(async (req, res) => {
   });
 });
 
+const getMenuPublic = asyncHandler(async (req, res) => {
+  const { cafeId, categoryId } = req.query;
+  if (!cafeId) {
+    throw new AppError('cafeId query parameter is required', 400);
+  }
+
+  const limit = resolveLimit(req.query.limit);
+  const filter = { cafeId, isAvailable: true };
+
+  if (categoryId) {
+    if (!isValidObjectId(categoryId)) {
+      throw new AppError('Invalid categoryId', 400);
+    }
+    filter.categoryId = categoryId;
+  }
+
+  const menuItems = await MenuItem.find(filter).sort({ createdAt: -1 }).limit(limit);
+
+  res.status(200).json({
+    count: menuItems.length,
+    limit,
+    menuItems,
+  });
+});
+
 module.exports = {
   getMenu,
   createMenuItem,
   updateMenuItem,
   deleteMenuItem,
+  getMenuPublic,
 };

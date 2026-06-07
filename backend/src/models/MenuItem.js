@@ -34,6 +34,13 @@ const menuItemSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    gstPercentage: {
+      type: Number,
+      required: true,
+      min: 0,
+      max: 100,
+      default: 0,
+    },
     isAvailable: {
       type: Boolean,
       default: true,
