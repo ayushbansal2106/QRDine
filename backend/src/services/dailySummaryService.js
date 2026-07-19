@@ -38,6 +38,30 @@ const updateDailySummary = async (cafeId, session, orders) => {
     hourCounts[hour] = (hourCounts[hour] || 0) + 1;
   }
 
+  // Compute GST breakdown by slab from order taxBreakdown
+  const gstMap = {};
+  for (const order of orders) {
+    for (const tax of order.taxBreakdown || []) {
+      const pct = tax.percentage;
+      if (pct > 0) {
+        gstMap[pct] = (gstMap[pct] || 0) + tax.amount;
+      }
+    }
+  }
+  const newGstBreakdown = Object.entries(gstMap).map(([pct, amt]) => ({
+    percentage: Number(pct),
+    amount: Number(amt),
+  }));
+
+  // Determine payment method
+  const isOnline = session.paymentMethod === 'paid_online';
+  const paymentMethodInc = {
+    'paymentMethods.online': isOnline ? 1 : 0,
+    'paymentMethods.counter': isOnline ? 0 : 1,
+    'paymentMethods.onlineRevenue': isOnline ? session.totalAmount : 0,
+    'paymentMethods.counterRevenue': isOnline ? 0 : session.totalAmount,
+  };
+
   try {
     const incOps = {
       totalRevenue: session.totalAmount,
@@ -45,15 +69,17 @@ const updateDailySummary = async (cafeId, session, orders) => {
       orderCount: orders.length,
       sessionCount: 1,
       customerCount: 1,
+      ...paymentMethodInc,
     };
 
     // To prevent race conditions, we use an atomic update.
-    // For arrays (itemsSold, peakHours), we just push new data.
+    // For arrays (itemsSold, peakHours, gstBreakdown), we just push new data.
     // We will aggregate and group them dynamically in the analytics dashboard later
     // if needed, or accept duplicates in the array for now.
     const pushOps = {
       itemsSold: { $each: newItemsSold },
       peakHours: { $each: Object.entries(hourCounts).map(([h, c]) => ({ hour: Number(h), orderCount: c })) },
+      gstBreakdown: { $each: newGstBreakdown },
     };
 
     const summary = await DailySummary.findOneAndUpdate(

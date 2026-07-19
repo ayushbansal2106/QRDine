@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation";
 import { Order, OrderStatus } from "@/types";
 import { TopAppBar } from "@/components/layout/TopAppBar";
 import { Button } from "@/components/common/Button";
-import { updateOrderStatus } from "@/actions/orders";
+import { updateOrderStatus, cancelOrderItem } from "@/actions/orders";
 import { formatCurrency } from "@/utils/currency";
+import { Modal } from "@/components/common/Modal";
+import { useState } from "react";
 
 interface OrderDetailClientProps {
   order: Order & {
@@ -22,6 +24,9 @@ export const OrderDetailClient: React.FC<OrderDetailClientProps> = ({ order }) =
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
+  const [cancellingItem, setCancellingItem] = useState<{ id: string; name: string } | null>(null);
+  const [cancellationReason, setCancellationReason] = useState("");
+
   const handleStatusChange = (newStatus: OrderStatus) => {
     startTransition(async () => {
       try {
@@ -29,6 +34,21 @@ export const OrderDetailClient: React.FC<OrderDetailClientProps> = ({ order }) =
         router.refresh();
       } catch (err: any) {
         alert(err.message || "Failed to update order status");
+      }
+    });
+  };
+
+  const handleCancelItem = async () => {
+    if (!cancellingItem || !cancellationReason) return;
+    
+    startTransition(async () => {
+      try {
+        await cancelOrderItem(order.id, cancellingItem.id, cancellationReason);
+        setCancellingItem(null);
+        setCancellationReason("");
+        router.refresh();
+      } catch (err: any) {
+        alert(err.message || "Failed to cancel item");
       }
     });
   };
@@ -154,36 +174,36 @@ export const OrderDetailClient: React.FC<OrderDetailClientProps> = ({ order }) =
           </h3>
           <div className="flex justify-between">
             <span>Order Created</span>
-            <span className="text-on-surface font-medium">{new Date(order.createdAt).toLocaleString()}</span>
+            <span suppressHydrationWarning className="text-on-surface font-medium">{new Date(order.createdAt).toLocaleString()}</span>
           </div>
           {order.acceptedAt && (
             <div className="flex justify-between">
               <span>Accepted At</span>
-              <span className="text-on-surface font-medium">{new Date(order.acceptedAt).toLocaleString()}</span>
+              <span suppressHydrationWarning className="text-on-surface font-medium">{new Date(order.acceptedAt).toLocaleString()}</span>
             </div>
           )}
           {order.preparingAt && (
             <div className="flex justify-between">
               <span>Started Preparing At</span>
-              <span className="text-on-surface font-medium">{new Date(order.preparingAt).toLocaleString()}</span>
+              <span suppressHydrationWarning className="text-on-surface font-medium">{new Date(order.preparingAt).toLocaleString()}</span>
             </div>
           )}
           {order.readyAt && (
             <div className="flex justify-between">
               <span>Ready for Service At</span>
-              <span className="text-on-surface font-medium">{new Date(order.readyAt).toLocaleString()}</span>
+              <span suppressHydrationWarning className="text-on-surface font-medium">{new Date(order.readyAt).toLocaleString()}</span>
             </div>
           )}
           {order.servedAt && (
             <div className="flex justify-between">
               <span>Served At</span>
-              <span className="text-on-surface font-medium">{new Date(order.servedAt).toLocaleString()}</span>
+              <span suppressHydrationWarning className="text-on-surface font-medium">{new Date(order.servedAt).toLocaleString()}</span>
             </div>
           )}
           {order.cancelledAt && (
             <div className="flex justify-between">
               <span>Cancelled At</span>
-              <span className="text-error font-medium">{new Date(order.cancelledAt).toLocaleString()}</span>
+              <span suppressHydrationWarning className="text-error font-medium">{new Date(order.cancelledAt).toLocaleString()}</span>
             </div>
           )}
         </div>
@@ -194,14 +214,37 @@ export const OrderDetailClient: React.FC<OrderDetailClientProps> = ({ order }) =
             Items List
           </h3>
           <div className="flex flex-col gap-sm">
-            {order.items?.map((item) => (
-              <div key={item.id} className="flex justify-between items-center text-body-md text-on-surface font-inter">
-                <span className="truncate pr-4">
-                  {item.name || "Unknown Item"} <span className="text-on-surface-variant font-semibold">x{item.quantity}</span>
-                </span>
-                <span className="shrink-0 font-semibold">
-                  {formatCurrency(Number(item.price) * item.quantity)}
-                </span>
+            {order.items?.map((item: any) => (
+              <div key={item._id || item.id} className="flex flex-col border-b border-surface-container pb-sm last:border-0">
+                <div className="flex justify-between items-start text-body-md text-on-surface font-inter">
+                  <div className="flex flex-col flex-1 pr-4">
+                    <span className="font-medium">
+                      {item.itemName || item.name || "Unknown Item"} <span className="text-on-surface-variant font-semibold">x{item.quantity}</span>
+                    </span>
+                    {item.status === 'cancelled' && (
+                      <span className="text-error text-body-sm mt-xs">
+                        Cancelled: {item.cancellationReason}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-col items-end gap-xs">
+                    <span className={`shrink-0 font-semibold ${item.status === 'cancelled' ? 'line-through text-on-surface-variant' : ''}`}>
+                      {formatCurrency(Number(item.price) * item.quantity)}
+                    </span>
+                    {item.status !== 'cancelled' && !['CANCELLED', 'SERVED'].includes(order.status) && (
+                      <button
+                        onClick={() => {
+                          console.log("Cancelling item:", item);
+                          setCancellingItem({ id: item._id || item.menuItemId || item.itemName || item.id, name: item.itemName || item.name });
+                        }}
+                        className="text-error text-label-sm font-semibold hover:underline cursor-pointer"
+                        disabled={isPending}
+                      >
+                        Item Unavailable
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
             ))}
           </div>
@@ -242,6 +285,54 @@ export const OrderDetailClient: React.FC<OrderDetailClientProps> = ({ order }) =
           </div>
         )}
       </main>
+
+      {cancellingItem && (
+        <Modal
+          isOpen={true}
+          onClose={() => {
+            setCancellingItem(null);
+            setCancellationReason("");
+          }}
+          title="Item Unavailable"
+        >
+          <div className="flex flex-col gap-md">
+            <p className="text-body-md text-on-surface">
+              Why is <strong>{cancellingItem.name}</strong> unavailable?
+            </p>
+            <select
+              value={cancellationReason}
+              onChange={(e) => setCancellationReason(e.target.value)}
+              className="w-full h-12 bg-surface-container-low rounded-xl px-md font-inter text-body-md text-on-surface border-none focus:ring-2 focus:ring-primary outline-none transition-all"
+            >
+              <option value="">Select a reason</option>
+              <option value="Out Of Stock">Out Of Stock</option>
+              <option value="Ingredient Missing">Ingredient Missing</option>
+              <option value="Machine Failure">Machine Failure</option>
+              <option value="Other">Other</option>
+            </select>
+            <div className="flex justify-end gap-sm mt-sm">
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setCancellingItem(null);
+                  setCancellationReason("");
+                }}
+                disabled={isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleCancelItem}
+                disabled={!cancellationReason || isPending}
+                className="bg-error hover:bg-error/90 text-on-error"
+              >
+                Confirm Cancellation
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };

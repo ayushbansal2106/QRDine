@@ -149,6 +149,37 @@ const generateInvoicePDF = async (session, orders, cafe, tableNumber) => {
     });
     doc.moveDown(0.3);
 
+    let totalAdditions = 0;
+    let totalDiscounts = 0;
+    if (session.adjustments && session.adjustments.length > 0) {
+      for (const adj of session.adjustments) {
+        if (adj.type === 'addition') totalAdditions += adj.amount;
+        if (adj.type === 'discount') totalDiscounts += adj.amount;
+      }
+    }
+
+    if (totalAdditions > 0) {
+      doc.text('Additions', totalsX, doc.y, { width: 80 });
+      doc.fillColor('#006400'); // Optional: dark green for addition, or keep black
+      doc.text(`+₹${totalAdditions.toFixed(2)}`, totalsValX, doc.y - doc.currentLineHeight(), {
+        width: totalsWidth,
+        align: 'right',
+      });
+      doc.fillColor('#000000');
+      doc.moveDown(0.3);
+    }
+
+    if (totalDiscounts > 0) {
+      doc.text('Discounts', totalsX, doc.y, { width: 80 });
+      doc.fillColor('#cc0000'); // Optional: red for discount, or keep black
+      doc.text(`-₹${totalDiscounts.toFixed(2)}`, totalsValX, doc.y - doc.currentLineHeight(), {
+        width: totalsWidth,
+        align: 'right',
+      });
+      doc.fillColor('#000000');
+      doc.moveDown(0.3);
+    }
+
     // GST breakdown per percentage
     const gstBreakdown = {};
     for (const item of aggregatedItems) {

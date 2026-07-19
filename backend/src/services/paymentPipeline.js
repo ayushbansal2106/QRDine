@@ -48,7 +48,7 @@ const executePaymentPipeline = async (sessionId, paymentMethod, cafeId) => {
 
   // Load related data
   const [orders, cafe, table] = await Promise.all([
-    Order.find({ sessionId: session._id }),
+    Order.find({ sessionId: session._id, status: { $ne: 'cancelled' } }),
     Cafe.findById(cafeId),
     Table.findById(session.tableId),
   ]);
@@ -60,11 +60,33 @@ const executePaymentPipeline = async (sessionId, paymentMethod, cafeId) => {
   let totalGST = 0;
 
   for (const order of orders) {
-    subtotal += order.subtotal || 0;
-    totalGST += order.totalGST || 0;
+    for (const item of order.items) {
+      if (item.status === 'served' || order.status === 'served') {
+        if (item.status !== 'cancelled') {
+          subtotal += item.price * item.quantity;
+          totalGST += item.gstAmount;
+        }
+      }
+    }
   }
 
-  const totalAmount = subtotal + totalGST;
+  let totalAdditions = 0;
+  let totalDiscounts = 0;
+
+  if (session.adjustments) {
+    for (const adj of session.adjustments) {
+      if (adj.type === 'addition') totalAdditions += adj.amount;
+      if (adj.type === 'discount') totalDiscounts += adj.amount;
+    }
+  }
+
+  const totalAmount = Math.max(0, subtotal + totalAdditions - totalDiscounts + totalGST);
+
+  if (orders.length === 0 || totalAmount < 0) {
+    // Revert processing status
+    await DiningSession.findByIdAndUpdate(session._id, { status: 'active' });
+    throw new Error('Cannot process payment for an empty dining session');
+  }
 
   // 3. Generate invoice number: INV-YYYYMMDD-XXXX
   const now = new Date();

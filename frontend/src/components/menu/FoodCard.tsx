@@ -6,13 +6,18 @@ import { useCartStore } from "@/store/cartStore";
 import { QuantityStepper } from "./QuantityStepper";
 import { formatCurrency } from "@/utils/currency";
 
+import { useSessionStore } from "@/store/sessionStore";
+
 interface FoodCardProps {
   item: MenuItem;
 }
 
 export const FoodCard: React.FC<FoodCardProps> = ({ item }) => {
   const { items, addItem, updateQuantity, removeItem } = useCartStore();
+  const { sessionStatus } = useSessionStore();
   const [cartQuantity, setCartQuantity] = useState(0);
+
+  const isSessionLocked = sessionStatus === 'bill_requested' || sessionStatus === 'awaiting_payment';
 
   useEffect(() => {
     const matched = items.find((i) => i.menuItem.id === item.id);
@@ -69,12 +74,12 @@ export const FoodCard: React.FC<FoodCardProps> = ({ item }) => {
           ) : (
             <button
               onClick={handleAdd}
-              disabled={!item.available}
+              disabled={!item.available || isSessionLocked}
               aria-label={`Add ${item.name} to cart`}
               className={`bg-surface-container text-on-surface p-base rounded-full hover:bg-primary hover:text-on-primary active:scale-95 transition-all flex items-center justify-center w-10 h-10 shadow-[0px_4px_20px_rgba(0,0,0,0.04)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               <span className="material-symbols-outlined text-[20px] select-none">
-                {item.available ? "add" : "block"}
+                {item.available && !isSessionLocked ? "add" : "block"}
               </span>
             </button>
           )}

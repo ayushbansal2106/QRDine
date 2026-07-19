@@ -1,7 +1,44 @@
+# Dependencies
 backend/node_modules/
-backend/.env
 frontend/node_modules/
+
+# Environment files
+backend/.env
 frontend/.env
-frontend/designs/
+
+# Build output
 frontend/.next/
 frontend/.vite/
+frontend/out/
+frontend/build/
+
+# Coverage & test artifacts
+backend/coverage/
+backend/.nyc_output/
+
+# IDE & editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Freebuff agent files
+.freebuff/
+
+# Lock files (optional — uncomment if you want to ignore)
+# backend/package-lock.json
+# frontend/package-lock.json
+
+# Other
+frontend/designs/
+backend/uploads/
+*.log
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local

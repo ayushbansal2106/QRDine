@@ -5,10 +5,25 @@ const DiningSession = require('../models/DiningSession');
 const AppError = require('../utils/AppError');
 const asyncHandler = require('../utils/asyncHandler');
 const socketService = require('../services/socketService');
+const resolveGuestToken = require('../utils/resolveGuestToken');
 
 // 1. Create Customer Order
 const createOrder = asyncHandler(async (req, res, next) => {
-  const { tableId, items, notes, sessionId } = req.body;
+  const { tableId, items, notes, sessionId, participantId, clientRequestId } = req.body;
+
+  // 0. Idempotency Check
+  if (clientRequestId) {
+    const existingOrder = await Order.findOne({ clientRequestId }).populate('tableId', 'tableNumber');
+    if (existingOrder) {
+      return res.status(200).json({
+        success: true,
+        message: 'Order placed successfully (recovered)',
+        orderId: existingOrder._id,
+        orderNumber: existingOrder.orderNumber,
+        order: existingOrder,
+      });
+    }
+  }
 
   // 1. Validate Table exists and is active
   const table = await Table.findById(tableId);
@@ -91,20 +106,52 @@ const createOrder = asyncHandler(async (req, res, next) => {
   const dateStr = `${yyyy}${mm}${dd}`;
   const orderNumber = `ORD-${dateStr}-${sequenceStr}`;
 
-  // 4b. Validate session if provided
+  let placedByParticipantId = null;
+  let placedByName = null;
+
+  // 4b. Validate session
   let validSessionId = null;
   if (sessionId) {
     const session = await DiningSession.findById(sessionId);
     if (!session) {
       return next(new AppError('Dining session not found', 404));
     }
-    if (session.status !== 'active') {
-      return next(new AppError(`Cannot add order: session status is "${session.status}"`, 400));
+    if (['bill_requested', 'awaiting_payment'].includes(session.status)) {
+      return next(new AppError(`Cannot add order: table is currently settling the bill`, 403));
     }
     if (String(session.tableId) !== String(table._id)) {
       return next(new AppError('Session does not belong to this table', 400));
     }
+
+    // Guest Token Validation (resolves from cookie or header)
+    const guestToken = resolveGuestToken(req);
+    if (!guestToken || session.guestToken !== guestToken) {
+      return next(new AppError('Forbidden: Invalid or missing guest session token', 403));
+    }
+
     validSessionId = session._id;
+    
+    if (participantId) {
+      const participant = session.participants.find(p => p.participantId === participantId);
+      if (participant) {
+        placedByParticipantId = participant.participantId;
+        placedByName = participant.name;
+      }
+    }
+    
+    // Add activity
+    const itemsSummary = resolvedItems.map(i => `${i.quantity} ${i.itemName}`).join(', ');
+    const msg = `${placedByName || session.customerName || 'A customer'} added ${itemsSummary}`;
+    session.addActivity('order_created', msg);
+
+    // Update last activity
+    session.lastActivityAt = new Date();
+    await session.save();
+
+    // Emit activity
+    socketService.emitSessionActivity(session._id, { type: 'order_created', message: msg, timestamp: new Date() });
+  } else {
+    return next(new AppError('A valid dining session is required to place an order', 400));
   }
 
   // 5. Save Order with pending default
@@ -112,7 +159,10 @@ const createOrder = asyncHandler(async (req, res, next) => {
     cafeId,
     tableId: table._id,
     sessionId: validSessionId,
+    placedByParticipantId: placedByParticipantId || null,
+    placedByName: placedByName || null,
     orderNumber,
+    clientRequestId: clientRequestId || null,
     items: resolvedItems,
     subtotal: calculatedSubtotal,
     totalGST: Number(totalGST.toFixed(2)),
@@ -126,6 +176,10 @@ const createOrder = asyncHandler(async (req, res, next) => {
   // Populate tableId and items before emitting to ensure the dashboard receives the complete payload
   const populatedOrder = await Order.findById(order._id).populate('tableId', 'tableNumber');
   socketService.emitNewOrder(cafeId, populatedOrder);
+  
+  if (validSessionId) {
+    socketService.emitOrderCreatedSession(validSessionId, populatedOrder);
+  }
 
   res.status(201).json({
     success: true,
@@ -233,6 +287,8 @@ const getPublicOrder = asyncHandler(async (req, res, next) => {
       readyAt: order.readyAt,
       servedAt: order.servedAt,
       cancelledAt: order.cancelledAt,
+      cancellationReason: order.cancellationReason,
+      cancelledBy: order.cancelledBy,
       table: {
         tableNumber: order.tableId ? order.tableId.tableNumber : 'N/A',
       },
@@ -288,6 +344,19 @@ const updateOrderStatus = asyncHandler(async (req, res, next) => {
   const timestampField = `${normalizedStatus}At`;
   order[timestampField] = new Date();
 
+  // Sync non-cancelled items with the order's overall status
+  order.items.forEach(item => {
+    if (item.status !== 'cancelled') {
+      item.status = normalizedStatus;
+    }
+  });
+
+  if (normalizedStatus === 'cancelled') {
+    const { cancellationReason, cancelledBy } = req.body;
+    order.cancellationReason = cancellationReason || 'Cancelled by staff';
+    order.cancelledBy = cancelledBy || (req.user ? req.user.name : 'System');
+  }
+
   await order.save();
 
   // Emit status change socket events
@@ -300,6 +369,96 @@ const updateOrderStatus = asyncHandler(async (req, res, next) => {
   });
 });
 
+// 7. Cancel Order Item (Admin/Kitchen)
+const cancelOrderItem = asyncHandler(async (req, res, next) => {
+  const { id, itemId } = req.params;
+  const { cancellationReason, cancelledBy } = req.body;
+
+  console.log(`cancelOrderItem called with orderId: ${id}, itemId: ${itemId}`);
+
+  const order = await Order.findOne({ _id: id, cafeId: req.cafeId }).populate('tableId', 'tableNumber');
+  if (!order) {
+    return next(new AppError('Order not found', 404));
+  }
+
+  let item = null;
+  try {
+    item = order.items.id(itemId);
+  } catch(e) {
+    console.log(`Mongoose items.id() threw an error: ${e.message}`);
+  }
+  
+  if (!item) {
+    // Fallback for older orders without _id on items
+    console.log(`Fallback search for menuItemId matching ${itemId}`);
+    item = order.items.find(i => String(i.menuItemId) === String(itemId) || String(i._id) === String(itemId) || String(i.itemName) === String(itemId));
+  }
+
+  if (!item) {
+    console.log(`Item not found! Order has ${order.items.length} items.`);
+    order.items.forEach(i => console.log(`- item: _id=${i._id}, menuItemId=${i.menuItemId}, name=${i.itemName}`));
+    return next(new AppError('Order item not found', 404));
+  }
+
+  if (item.status === 'cancelled') {
+    return next(new AppError('Item is already cancelled', 400));
+  }
+
+  item.status = 'cancelled';
+  item.cancelledAt = new Date();
+  item.cancellationReason = cancellationReason || 'Unavailable';
+
+  let newSubtotal = 0;
+  let newTotalGST = 0;
+  order.items.forEach(i => {
+    if (i.status !== 'cancelled') {
+      newSubtotal += i.price * i.quantity;
+      newTotalGST += i.gstAmount;
+    }
+  });
+  order.subtotal = newSubtotal;
+  order.totalGST = newTotalGST;
+  order.totalAmount = newSubtotal + newTotalGST + order.serviceCharge;
+
+  const allCancelled = order.items.every(i => i.status === 'cancelled');
+  if (allCancelled) {
+    order.status = 'cancelled';
+    order.cancelledAt = new Date();
+    order.cancellationReason = 'All items cancelled';
+  } else {
+    if (!['ready', 'served', 'partially_served'].includes(order.status)) {
+       order.status = 'partially_cancelled';
+    }
+  }
+
+  await order.save();
+
+  if (order.sessionId) {
+    const session = await DiningSession.findById(order.sessionId);
+    if (session && ['bill_requested', 'bill_updated', 'active'].includes(session.status)) {
+       if (['bill_requested', 'bill_updated'].includes(session.status)) {
+           session.status = 'bill_updated';
+       }
+       session.addActivity('item_cancelled', `Kitchen cancelled: ${item.itemName} (${item.cancellationReason})`);
+       await session.save();
+       socketService.emitSessionActivity(session._id, { type: 'item_cancelled', message: `Kitchen cancelled: ${item.itemName} (${item.cancellationReason})`, timestamp: new Date() });
+       
+       if (session.status === 'bill_updated') {
+           socketService.emitBillUpdated(req.cafeId, { sessionId: session._id, message: 'Bill has been updated due to item availability' });
+       }
+    }
+  }
+
+  socketService.emitItemCancelled(req.cafeId, { orderId: order._id, itemId, itemName: item.itemName, reason: item.cancellationReason });
+  socketService.emitStatusUpdate(order._id, order.cafeId, order.status);
+
+  res.status(200).json({
+    success: true,
+    message: 'Item cancelled successfully',
+    order,
+  });
+});
+
 module.exports = {
   createOrder,
   getOrders,
@@ -307,4 +466,5 @@ module.exports = {
   getPublicOrder,
   getPublicOrderStatus,
   updateOrderStatus,
+  cancelOrderItem,
 };

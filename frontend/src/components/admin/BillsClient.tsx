@@ -3,9 +3,11 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { DiningSession } from "@/types";
 import { getBills } from "@/actions/billing";
-import { markSessionPaid } from "@/actions/sessions";
+import { markSessionPaid, addBillAdjustment, transferOwnership } from "@/actions/sessions";
 import { useSocketStore } from "@/store/socketStore";
 import { formatCurrency } from "@/utils/currency";
+import { Modal } from "@/components/common/Modal";
+import { Button } from "@/components/common/Button";
 
 type BillFilter = "all" | "active" | "awaiting_payment";
 
@@ -14,6 +16,18 @@ export const BillsClient: React.FC<{ cafeId: string }> = ({ cafeId }) => {
   const [filter, setFilter] = useState<BillFilter>("all");
   const [isLoading, setIsLoading] = useState(true);
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
+  
+  const [adjustingBill, setAdjustingBill] = useState<any | null>(null);
+  const [adjustmentType, setAdjustmentType] = useState<"addition" | "discount">("discount");
+  const [adjustmentDesc, setAdjustmentDesc] = useState("");
+  const [adjustmentAmount, setAdjustmentAmount] = useState("");
+  const [isAdjusting, setIsAdjusting] = useState(false);
+
+  const [transferringBill, setTransferringBill] = useState<any | null>(null);
+  const [newOwnerParticipantId, setNewOwnerParticipantId] = useState("");
+  const [newOwnerEmail, setNewOwnerEmail] = useState("");
+  const [isTransferring, setIsTransferring] = useState(false);
+
   const { socket, connect, joinRoom } = useSocketStore();
 
   const fetchBills = useCallback(async () => {
@@ -79,6 +93,43 @@ export const BillsClient: React.FC<{ cafeId: string }> = ({ cafeId }) => {
         next.delete(sessionId);
         return next;
       });
+    }
+  };
+
+  const handleAddAdjustment = async () => {
+    if (!adjustingBill || !adjustmentDesc || !adjustmentAmount) return;
+    setIsAdjusting(true);
+    try {
+      await addBillAdjustment(
+        adjustingBill.id,
+        adjustmentType,
+        adjustmentDesc,
+        Number(adjustmentAmount)
+      );
+      setAdjustingBill(null);
+      setAdjustmentDesc("");
+      setAdjustmentAmount("");
+      fetchBills();
+    } catch (err: any) {
+      alert(err.message || "Failed to add adjustment");
+    } finally {
+      setIsAdjusting(false);
+    }
+  };
+
+  const handleTransferOwnership = async () => {
+    if (!transferringBill || !newOwnerParticipantId) return;
+    setIsTransferring(true);
+    try {
+      await transferOwnership(transferringBill.id, newOwnerParticipantId, newOwnerEmail || undefined);
+      setTransferringBill(null);
+      setNewOwnerParticipantId("");
+      setNewOwnerEmail("");
+      fetchBills();
+    } catch (err: any) {
+      alert(err.message || "Failed to transfer ownership");
+    } finally {
+      setIsTransferring(false);
     }
   };
 
@@ -262,10 +313,179 @@ export const BillsClient: React.FC<{ cafeId: string }> = ({ cafeId }) => {
                     Customer is still ordering...
                   </div>
                 )}
+
+                {/* Action Buttons */}
+                {(bill.status === "active" || bill.status === "awaiting_payment") && (
+                  <div className="flex gap-sm mt-sm">
+                    <button
+                      onClick={() => setAdjustingBill(bill)}
+                      disabled={isProcessing}
+                      className="flex-1 h-10 bg-surface-container-high text-on-surface rounded-lg font-inter font-semibold text-body-sm cursor-pointer hover:bg-surface-container transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-xs"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">edit_note</span>
+                      Adjust
+                    </button>
+                    {bill.participants && bill.participants.filter((p: any) => p.status === 'active').length > 1 && (
+                      <button
+                        onClick={() => {
+                          setTransferringBill(bill);
+                          setNewOwnerParticipantId("");
+                          setNewOwnerEmail("");
+                        }}
+                        disabled={isProcessing}
+                        className="flex-1 h-10 bg-surface-container-high text-on-surface rounded-lg font-inter font-semibold text-body-sm cursor-pointer hover:bg-surface-container transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-xs"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">transfer_within_a_station</span>
+                        Transfer
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
+      )}
+
+      {/* Adjustment Modal */}
+      {adjustingBill && (
+        <Modal
+          isOpen={true}
+          onClose={() => setAdjustingBill(null)}
+          title="Adjust Bill"
+        >
+          <div className="flex flex-col gap-md">
+            <p className="text-body-md text-on-surface">
+              Adding adjustment for Table {adjustingBill.tableId?.tableNumber || "N/A"}.
+            </p>
+
+            <div className="flex flex-col gap-sm">
+              <label className="font-inter font-semibold text-label-md text-on-surface">Type</label>
+              <div className="flex gap-sm">
+                <Button
+                  variant={adjustmentType === "discount" ? "primary" : "secondary"}
+                  onClick={() => setAdjustmentType("discount")}
+                  className="flex-1"
+                >
+                  Discount
+                </Button>
+                <Button
+                  variant={adjustmentType === "addition" ? "primary" : "secondary"}
+                  onClick={() => setAdjustmentType("addition")}
+                  className="flex-1"
+                >
+                  Addition
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-sm">
+              <label className="font-inter font-semibold text-label-md text-on-surface">Description</label>
+              <input
+                type="text"
+                placeholder="e.g. Service Apology"
+                value={adjustmentDesc}
+                onChange={(e) => setAdjustmentDesc(e.target.value)}
+                className="w-full h-12 bg-surface-container-low rounded-xl px-md font-inter text-body-md text-on-surface border-none focus:ring-2 focus:ring-primary outline-none transition-all"
+              />
+            </div>
+
+            <div className="flex flex-col gap-sm">
+              <label className="font-inter font-semibold text-label-md text-on-surface">Amount (₹)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="e.g. 50"
+                value={adjustmentAmount}
+                onChange={(e) => setAdjustmentAmount(e.target.value)}
+                className="w-full h-12 bg-surface-container-low rounded-xl px-md font-inter text-body-md text-on-surface border-none focus:ring-2 focus:ring-primary outline-none transition-all"
+              />
+            </div>
+
+            <div className="flex justify-end gap-sm mt-sm">
+              <Button
+                variant="secondary"
+                onClick={() => setAdjustingBill(null)}
+                disabled={isAdjusting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleAddAdjustment}
+                disabled={!adjustmentDesc || !adjustmentAmount || isAdjusting}
+              >
+                {isAdjusting ? "Saving..." : "Save Adjustment"}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Transfer Ownership Modal */}
+      {transferringBill && (
+        <Modal
+          isOpen={true}
+          onClose={() => setTransferringBill(null)}
+          title="Transfer Ownership"
+        >
+          <div className="flex flex-col gap-md">
+            <p className="text-body-md text-on-surface">
+              Transferring ownership for Table {transferringBill.tableId?.tableNumber || "N/A"}.
+              The new owner will be responsible for the bill.
+            </p>
+
+            <div className="flex flex-col gap-sm">
+              <label className="font-inter font-semibold text-label-md text-on-surface">Select New Owner</label>
+              <select
+                value={newOwnerParticipantId}
+                onChange={(e) => setNewOwnerParticipantId(e.target.value)}
+                className="w-full h-12 bg-surface-container-low rounded-xl px-md font-inter text-body-md text-on-surface border-none focus:ring-2 focus:ring-primary outline-none transition-all"
+              >
+                <option value="">-- Select Participant --</option>
+                {transferringBill.participants
+                  ?.filter((p: any) => p.status === 'active' && p.role !== 'owner')
+                  .map((p: any) => (
+                    <option key={p.participantId} value={p.participantId}>
+                      {p.name}
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-sm">
+              <label className="font-inter font-semibold text-label-md text-on-surface">Email (Optional)</label>
+              <input
+                type="email"
+                placeholder="Required for invoices"
+                value={newOwnerEmail}
+                onChange={(e) => setNewOwnerEmail(e.target.value)}
+                className="w-full h-12 bg-surface-container-low rounded-xl px-md font-inter text-body-md text-on-surface border-none focus:ring-2 focus:ring-primary outline-none transition-all"
+              />
+              <p className="text-body-sm text-on-surface-variant italic">
+                If the new owner did not provide an email, enter one here to ensure they receive the invoice.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-sm mt-sm">
+              <Button
+                variant="secondary"
+                onClick={() => setTransferringBill(null)}
+                disabled={isTransferring}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleTransferOwnership}
+                disabled={!newOwnerParticipantId || isTransferring}
+              >
+                {isTransferring ? "Transferring..." : "Transfer Ownership"}
+              </Button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );

@@ -24,15 +24,36 @@ const getBills = asyncHandler(async (req, res, next) => {
   // Enrich each session with order count and running total
   const enriched = await Promise.all(
     sessions.map(async (s) => {
-      const orders = await Order.find({ sessionId: s._id });
+      const orders = await Order.find({ sessionId: s._id, status: { $ne: 'cancelled' } });
       let runningTotal = 0;
-      for (const o of orders) {
-        runningTotal += (o.subtotal || 0) + (o.totalGST || 0);
+      let orderCount = 0;
+      for (const order of orders) {
+        orderCount++;
+        for (const item of order.items) {
+          if (item.status === 'served' || order.status === 'served') {
+            if (item.status !== 'cancelled') {
+              runningTotal += item.price * item.quantity;
+              runningTotal += item.gstAmount;
+            }
+          }
+        }
       }
+
+      let totalAdditions = 0;
+      let totalDiscounts = 0;
+      if (s.adjustments) {
+        for (const adj of s.adjustments) {
+          if (adj.type === 'addition') totalAdditions += adj.amount;
+          if (adj.type === 'discount') totalDiscounts += adj.amount;
+        }
+      }
+
+      runningTotal = Math.max(0, runningTotal + totalAdditions - totalDiscounts);
+
       return {
         ...s.toObject(),
         id: s._id,
-        orderCount: orders.length,
+        orderCount,
         runningTotal: Number(runningTotal.toFixed(2)),
       };
     })
@@ -79,7 +100,7 @@ const getSalesHistory = asyncHandler(async (req, res, next) => {
   // Get invoice for each session
   const enriched = await Promise.all(
     sessions.map(async (s) => {
-      const orderCount = await Order.countDocuments({ sessionId: s._id });
+      const orderCount = await Order.countDocuments({ sessionId: s._id, status: 'served' });
       const invoice = await Invoice.findOne({ sessionId: s._id });
       return {
         ...s.toObject(),

@@ -1,6 +1,7 @@
 const express = require('express');
 const { protect, authorizeRoles } = require('../middlewares/authMiddleware');
 const tenantMiddleware = require('../middlewares/tenantMiddleware');
+const { validateCsrfToken } = require('../middlewares/csrfMiddleware');
 const {
   createRequest,
   getRequests,
@@ -13,7 +14,7 @@ const router = express.Router();
 router.post('/', createRequest);
 
 // Admin-only endpoints
-router.use(protect, tenantMiddleware, authorizeRoles('owner', 'manager'));
+router.use(protect, tenantMiddleware, authorizeRoles('owner', 'manager'), validateCsrfToken);
 
 router.get('/', getRequests);
 router.put('/:id', resolveRequest);

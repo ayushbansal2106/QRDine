@@ -3,6 +3,7 @@ const Table = require('../models/Table');
 const AppError = require('../utils/AppError');
 const asyncHandler = require('../utils/asyncHandler');
 const socketService = require('../services/socketService');
+const resolveGuestToken = require('../utils/resolveGuestToken');
 
 // 1. Create Public Waiter Request
 const createRequest = asyncHandler(async (req, res, next) => {
@@ -19,6 +20,22 @@ const createRequest = asyncHandler(async (req, res, next) => {
   }
   if (!table.isActive) {
     return next(new AppError('Table is currently disabled/inactive', 400));
+  }
+
+  // Validate session and guestToken
+  const DiningSession = require('../models/DiningSession');
+  const session = await DiningSession.findOne({
+    tableId: table._id,
+    status: { $in: ['active', 'bill_requested', 'awaiting_payment'] },
+  });
+
+  if (!session) {
+    return next(new AppError('A valid dining session is required to call the waiter', 400));
+  }
+
+  const guestToken = resolveGuestToken(req);
+  if (!guestToken || session.guestToken !== guestToken) {
+    return next(new AppError('Forbidden: Invalid or missing guest session token', 403));
   }
 
   const request = await WaiterRequest.create({

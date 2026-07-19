@@ -85,6 +85,64 @@ const emitSessionClosed = (cafeId, sessionData) => {
   }
 };
 
+const emitItemCancelled = (cafeId, payload) => {
+  if (io) {
+    io.to(`cafe-${cafeId}`).emit("item-cancelled", payload);
+    io.to(`order-${payload.orderId}`).emit("item-cancelled", payload);
+    console.log(`Socket emit item-cancelled to cafe-${cafeId} (Order: ${payload.orderId}, Item: ${payload.itemId})`);
+  }
+};
+
+const emitBillUpdated = (cafeId, sessionData) => {
+  if (io) {
+    io.to(`cafe-${cafeId}`).emit("bill-updated", sessionData);
+    console.log(`Socket emit bill-updated to cafe-${cafeId} (Session: ${sessionData.sessionId})`);
+  }
+};
+
+// Sprint 8.9.1 Multi-participant Session Events
+const emitParticipantJoined = (sessionId, participant) => {
+  if (io) {
+    io.to(`session-${sessionId}`).emit("participant-joined", participant);
+  }
+};
+
+const emitParticipantLeft = (sessionId, participantId) => {
+  if (io) {
+    io.to(`session-${sessionId}`).emit("participant-left", { participantId });
+  }
+};
+
+const emitOrderCreatedSession = (sessionId, orderData) => {
+  if (io) {
+    io.to(`session-${sessionId}`).emit("order-created", orderData);
+  }
+};
+
+const emitSessionBillRequested = (sessionId) => {
+  if (io) {
+    io.to(`session-${sessionId}`).emit("bill-requested", { sessionId });
+  }
+};
+
+const emitOwnershipTransferred = (sessionId, payload) => {
+  if (io) {
+    io.to(`session-${sessionId}`).emit("ownership-transferred", payload);
+  }
+};
+
+const emitSessionActivity = (sessionId, activity) => {
+  if (io) {
+    io.to(`session-${sessionId}`).emit("session-activity", activity);
+  }
+};
+
+const emitSessionBillCancelled = (sessionId) => {
+  if (io) {
+    io.to(`session-${sessionId}`).emit("bill-cancelled", { sessionId });
+  }
+};
+
 module.exports = {
   init,
   getIO,
@@ -97,4 +155,13 @@ module.exports = {
   emitPaymentAwaiting,
   emitSessionPaid,
   emitSessionClosed,
+  emitItemCancelled,
+  emitBillUpdated,
+  emitParticipantJoined,
+  emitParticipantLeft,
+  emitOrderCreatedSession,
+  emitSessionBillRequested,
+  emitOwnershipTransferred,
+  emitSessionActivity,
+  emitSessionBillCancelled,
 };

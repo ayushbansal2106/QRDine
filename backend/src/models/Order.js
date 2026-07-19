@@ -32,9 +32,19 @@ const orderItemSchema = new mongoose.Schema(
       required: true,
       default: 0,
     },
-  },
-  {
-    _id: false,
+    status: {
+      type: String,
+      enum: ['pending', 'accepted', 'preparing', 'ready', 'served', 'cancelled'],
+      default: 'pending',
+    },
+    cancelledAt: {
+      type: Date,
+      default: null,
+    },
+    cancellationReason: {
+      type: String,
+      default: null,
+    },
   }
 );
 
@@ -55,10 +65,23 @@ const orderSchema = new mongoose.Schema(
       ref: 'DiningSession',
       default: null,
     },
+    placedByParticipantId: {
+      type: String,
+      default: null,
+    },
+    placedByName: {
+      type: String,
+      default: null,
+    },
     orderNumber: {
       type: String,
       required: true,
       trim: true,
+    },
+    clientRequestId: {
+      type: String,
+      unique: true,
+      sparse: true,
     },
     items: {
       type: [orderItemSchema],
@@ -96,7 +119,7 @@ const orderSchema = new mongoose.Schema(
     ],
     status: {
       type: String,
-      enum: ['pending', 'accepted', 'preparing', 'ready', 'served', 'cancelled'],
+      enum: ['pending', 'accepted', 'preparing', 'ready', 'partially_served', 'served', 'partially_cancelled', 'cancelled'],
       default: 'pending',
     },
     acceptedAt: {
@@ -117,6 +140,14 @@ const orderSchema = new mongoose.Schema(
     },
     cancelledAt: {
       type: Date,
+      default: null,
+    },
+    cancelledBy: {
+      type: String,
+      default: null,
+    },
+    cancellationReason: {
+      type: String,
       default: null,
     },
   },

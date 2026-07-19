@@ -8,7 +8,9 @@ export async function createOrder(
   tableId: string,
   items: { menuItemId: string; quantity: number }[],
   notes?: string,
-  sessionId?: string | null
+  sessionId?: string | null,
+  participantId?: string | null,
+  clientRequestId?: string | null
 ) {
   try {
     const response = await apiClient.post("/orders", {
@@ -16,6 +18,8 @@ export async function createOrder(
       items,
       notes,
       sessionId: sessionId || undefined,
+      participantId: participantId || undefined,
+      clientRequestId: clientRequestId || undefined,
     });
     
     revalidatePath("/admin/orders");
@@ -51,6 +55,27 @@ export async function updateOrderStatus(id: string, status: OrderStatus) {
   } catch (error: any) {
     console.error("Failed to update order status:", error);
     throw new Error(error.response?.data?.message || "Failed to update order status.");
+  }
+}
+
+export async function cancelOrderItem(orderId: string, itemId: string, reason: string) {
+  try {
+    const response = await apiClient.post(`/orders/${orderId}/items/${itemId}/cancel`, {
+      cancellationReason: reason,
+    });
+
+    revalidatePath("/admin/orders");
+    revalidatePath("/admin/kitchen");
+    revalidatePath(`/admin/orders/${orderId}`);
+    revalidatePath(`/order/${orderId}`);
+    
+    return {
+      success: true,
+      order: response.data.order,
+    };
+  } catch (error: any) {
+    console.error("Failed to cancel order item:", error);
+    throw new Error(error.response?.data?.message || "Failed to cancel item.");
   }
 }
 

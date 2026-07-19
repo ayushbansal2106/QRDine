@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { Button } from "@/components/common/Button";
 import { useCartStore } from "@/store/cartStore";
 import { formatCurrency } from "@/utils/currency";
+import { ActivityFeedList } from "@/components/cart/ActivityFeedList";
 
 export default function CartPage() {
   const { items, getTotalPrice, tableId } = useCartStore();
@@ -51,6 +52,9 @@ export default function CartPage() {
                 <CartItem key={item.menuItem.id} item={item} />
               ))}
             </div>
+
+            {/* Recent Activity Feed */}
+            <ActivityFeedList />
 
             {/* Pricing Summary */}
             <div className="bg-surface-container-lowest rounded-xl p-md shadow-[0px_4px_20px_rgba(0,0,0,0.04)] flex flex-col gap-sm mb-lg">

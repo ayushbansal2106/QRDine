@@ -38,6 +38,10 @@ export const useSocketStore = create<SocketState>((set, get) => ({
             const orderId = room.replace("order-", "");
             s.emit("join-order", orderId);
             console.log(`Re-joined order room: ${room}`);
+          } else if (room.startsWith("session-")) {
+            const sessionId = room.replace("session-", "");
+            s.emit("join-session", sessionId);
+            console.log(`Re-joined session room: ${room}`);
           }
         });
       });
@@ -77,6 +81,10 @@ export const useSocketStore = create<SocketState>((set, get) => ({
         const orderId = room.replace("order-", "");
         s.emit("join-order", orderId);
         console.log(`Joined order room: ${room}`);
+      } else if (room.startsWith("session-")) {
+        const sessionId = room.replace("session-", "");
+        s.emit("join-session", sessionId);
+        console.log(`Joined session room: ${room}`);
       }
     }
   },

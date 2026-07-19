@@ -83,9 +83,17 @@ export const OrderTicket: React.FC<OrderTicketProps> = ({
     <div className="bg-surface-container-lowest rounded-xl p-md shadow-[0px_4px_20px_rgba(0,0,0,0.02)] border border-surface-container hover:shadow-[0px_8px_24px_rgba(0,0,0,0.06)] transition-all duration-200 flex flex-col gap-sm font-inter">
       {/* Header */}
       <div className="flex justify-between items-center border-b border-surface-container pb-xs">
-        <span className="font-semibold text-body-lg text-on-surface">
-          Table {order.table?.tableNumber || "N/A"}
-        </span>
+        <div className="flex flex-col">
+          <span className="font-semibold text-body-lg text-on-surface">
+            Table {order.table?.tableNumber || "N/A"}
+          </span>
+          {order.placedByName && (
+            <span className="text-body-sm text-on-surface-variant flex items-center gap-[4px]">
+              <span className="material-symbols-outlined text-[16px]">person</span>
+              {order.placedByName}
+            </span>
+          )}
+        </div>
         <span className="text-body-sm text-on-surface-variant font-mono">
           #{order.id.slice(0, 4).toUpperCase()}
         </span>

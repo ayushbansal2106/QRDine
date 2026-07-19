@@ -81,6 +81,21 @@ const dailySummarySchema = new mongoose.Schema(
       type: [peakHourSchema],
       default: [],
     },
+    gstBreakdown: {
+      type: [
+        {
+          percentage: { type: Number, required: true },
+          amount: { type: Number, default: 0 },
+        },
+      ],
+      default: [],
+    },
+    paymentMethods: {
+      online: { type: Number, default: 0 },
+      counter: { type: Number, default: 0 },
+      onlineRevenue: { type: Number, default: 0 },
+      counterRevenue: { type: Number, default: 0 },
+    },
   },
   {
     timestamps: true,

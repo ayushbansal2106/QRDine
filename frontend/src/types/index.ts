@@ -78,6 +78,8 @@ export interface Order {
   readyAt?: Date | null;
   servedAt?: Date | null;
   cancelledAt?: Date | null;
+  placedByParticipantId?: string | null;
+  placedByName?: string | null;
 }
 
 export interface WaiterRequest {
@@ -116,6 +118,7 @@ export interface DiningSession {
   orders?: Order[];
   orderCount?: number;
   runningTotal?: number;
+  participants?: any[];
 }
 
 export interface Invoice {
@@ -136,3 +139,151 @@ export interface DailySummary {
   averageOrderValue: number;
   customerCount: number;
 }
+
+// Settings — Cafe Profile & Staff
+
+export interface CafeProfile {
+  id: string;
+  name: string;
+  logo: string;
+  address: string;
+  phone: string;
+  email: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface StaffUser {
+  id: string;
+  cafeId: string;
+  name: string;
+  email: string;
+  role: "owner" | "manager" | "staff";
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Sprint 8 — Analytics & Business Intelligence
+
+export interface AnalyticsOverview {
+  revenueToday: number;
+  revenueChange: number;
+  ordersToday: number;
+  orderChange: number;
+  avgOrderValue: number;
+  activeTables: number;
+  totalTables: number;
+  sessionsToday: number;
+  tableTurnover: number;
+}
+
+export interface RevenueDailyData {
+  date: string;
+  revenue: number;
+  orders: number;
+}
+
+export interface PeakDay {
+  day: string;
+  totalRevenue: number;
+  avgRevenue: number;
+}
+
+export interface RevenueAnalytics {
+  period: string;
+  currentRevenue: number;
+  previousRevenue: number;
+  growthPercent: number;
+  dailyData: RevenueDailyData[];
+  peakDays: PeakDay[];
+}
+
+export interface GSTSlab {
+  percentage: number;
+  amount: number;
+}
+
+export interface GSTAnalytics {
+  period: string;
+  totalGST: number;
+  slabs: GSTSlab[];
+}
+
+export interface ItemStat {
+  menuItemId: string;
+  itemName: string;
+  quantity: number;
+  revenue: number;
+}
+
+export interface ItemsAnalyticsData {
+  period: string;
+  bestByQuantity: ItemStat[];
+  bestByRevenue: ItemStat[];
+  worstPerformers: ItemStat[];
+  totalItems: number;
+}
+
+export interface TableStat {
+  tableId: string;
+  tableNumber: string;
+  revenue: number;
+  orderCount: number;
+  sessionCount: number;
+  avgSessionDuration: number;
+  turnoverRate: number;
+  isOccupied: boolean;
+}
+
+export interface TableAnalyticsData {
+  period: string;
+  tables: TableStat[];
+}
+
+export interface ConversionFunnel {
+  sessionsStarted: number;
+  ordersPlaced: number;
+  billsRequested: number;
+  paymentsCompleted: number;
+}
+
+export interface SessionAnalyticsData {
+  period: string;
+  totalSessions: number;
+  avgDuration: number;
+  longestSession: number;
+  shortestSession: number;
+  closedCount: number;
+  funnel: ConversionFunnel;
+}
+
+export interface TopCustomer {
+  email: string;
+  name: string;
+  visits: number;
+  totalRevenue: number;
+  isReturning: boolean;
+}
+
+export interface CustomerAnalyticsData {
+  period: string;
+  totalCustomers: number;
+  newCustomers: number;
+  returningCustomers: number;
+  newPercent: number;
+  returningPercent: number;
+  topCustomers: TopCustomer[];
+}
+
+export interface PaymentAnalyticsData {
+  period: string;
+  onlineCount: number;
+  counterCount: number;
+  onlinePercent: number;
+  counterPercent: number;
+  onlineRevenue: number;
+  counterRevenue: number;
+  avgOnlineTicket: number;
+  avgCounterTicket: number;
+}
+

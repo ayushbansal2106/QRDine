@@ -5,6 +5,7 @@ import { Modal } from "@/components/common/Modal";
 import { Button } from "@/components/common/Button";
 import { getBillPreview, submitPaymentPreference } from "@/actions/sessions";
 import { useSessionStore } from "@/store/sessionStore";
+import { useSocketStore } from "@/store/socketStore";
 import { formatCurrency } from "@/utils/currency";
 
 interface CustomerBillModalProps {
@@ -16,7 +17,7 @@ export const CustomerBillModal: React.FC<CustomerBillModalProps> = ({
   isOpen,
   onClose,
 }) => {
-  const { activeSessionId, sessionStatus, setSessionStatus } = useSessionStore();
+  const { activeSessionId, sessionStatus, setSessionStatus, role } = useSessionStore();
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [billData, setBillData] = useState<{
@@ -24,17 +25,43 @@ export const CustomerBillModal: React.FC<CustomerBillModalProps> = ({
     gst: number;
     totalAmount: number;
     orderCount: number;
+    additions?: number;
+    discounts?: number;
+    adjustments?: any[];
+    items?: { name: string; quantity: number; price: number }[];
   } | null>(null);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
 
+  const { socket, connect, joinRoom } = useSocketStore();
+
   useEffect(() => {
     if (isOpen && activeSessionId) {
-      // If we are already awaiting payment or paid, don't re-fetch/reset,
-      // just show the state. But wait, if they reopen, we might want to refresh.
       fetchBillPreview();
+      // Ensure we are connected to the cafe's room to receive events
+      // Since cafeId isn't directly available here, we rely on TableMenuClient's existing connection.
+      // We just need to listen to socket events.
     }
   }, [isOpen, activeSessionId]);
+
+  useEffect(() => {
+    if (!socket || !isOpen) return;
+
+    const handleBillUpdated = (data: any) => {
+      if (data.sessionId === activeSessionId) {
+        if (data.message) {
+          alert(`Notice: ${data.message}`);
+        }
+        fetchBillPreview();
+      }
+    };
+
+    socket.on("bill-updated", handleBillUpdated);
+
+    return () => {
+      socket.off("bill-updated", handleBillUpdated);
+    };
+  }, [socket, isOpen, activeSessionId]);
 
   const fetchBillPreview = async () => {
     if (!activeSessionId) return;
@@ -42,7 +69,7 @@ export const CustomerBillModal: React.FC<CustomerBillModalProps> = ({
     setError("");
     try {
       const result = await getBillPreview(activeSessionId);
-      if (result.success) {
+      if (result.success && result.bill) {
         setBillData(result.bill);
       }
     } catch (err: any) {
@@ -119,10 +146,43 @@ export const CustomerBillModal: React.FC<CustomerBillModalProps> = ({
                 <span>Orders Included</span>
                 <span>{billData.orderCount}</span>
               </div>
+              
+              {/* Itemized List */}
+              {billData.items && billData.items.length > 0 && (
+                <div className="mb-md pb-md border-b border-surface-container-high border-dashed">
+                  {billData.items.map((item, idx) => (
+                    <div key={idx} className="flex items-start justify-between mb-xs">
+                      <div className="flex flex-col">
+                        <span className="text-body-md font-inter text-on-surface">{item.name}</span>
+                        <span className="text-body-sm font-inter text-on-surface-variant">Qty: {item.quantity}</span>
+                      </div>
+                      <span className="text-body-md font-inter text-on-surface">
+                        {formatCurrency(item.price * item.quantity)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div className="flex items-center justify-between mb-xs text-body-md font-inter text-on-surface">
                 <span>Subtotal</span>
                 <span>{formatCurrency(billData.subtotal)}</span>
               </div>
+              
+              {(billData.additions || 0) > 0 && (
+                <div className="flex items-center justify-between mb-xs text-body-md font-inter text-primary">
+                  <span>Additions</span>
+                  <span>+{formatCurrency(billData.additions!)}</span>
+                </div>
+              )}
+              
+              {(billData.discounts || 0) > 0 && (
+                <div className="flex items-center justify-between mb-xs text-body-md font-inter text-error">
+                  <span>Discounts</span>
+                  <span>-{formatCurrency(billData.discounts!)}</span>
+                </div>
+              )}
+
               <div className="flex items-center justify-between mb-sm text-body-md font-inter text-on-surface">
                 <span>GST</span>
                 <span>{formatCurrency(billData.gst)}</span>
@@ -136,13 +196,16 @@ export const CustomerBillModal: React.FC<CustomerBillModalProps> = ({
               </div>
             </div>
 
-            {/* Actions / Success State */}
             {successMsg || isAwaiting ? (
               <div className="bg-[#E65100]/10 text-[#E65100] p-md rounded-xl text-center font-inter text-body-md mt-sm">
                 <span className="material-symbols-outlined text-[32px] mb-xs block mx-auto">
                   hourglass_empty
                 </span>
                 {successMsg || "Staff has been notified. Please proceed to the counter or await confirmation."}
+              </div>
+            ) : role !== 'owner' ? (
+              <div className="mt-sm p-md bg-surface-container-low rounded-xl text-center font-inter text-body-md text-on-surface-variant">
+                Only the table host can request the bill and select a payment method.
               </div>
             ) : (
               <div className="mt-sm">

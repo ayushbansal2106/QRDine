@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const cookieParser = require('cookie-parser');
 const swaggerUi = require('swagger-ui-express');
 const path = require('path');
 
@@ -14,15 +15,34 @@ const requestRoutes = require('./routes/requestRoutes');
 const sessionRoutes = require('./routes/sessionRoutes');
 const billingRoutes = require('./routes/billingRoutes');
 const invoiceRoutes = require('./routes/invoiceRoutes');
+const analyticsRoutes = require('./routes/analyticsRoutes');
+const cafeRoutes = require('./routes/cafeRoutes');
+const userRoutes = require('./routes/userRoutes');
+const uploadRoutes = require('./routes/uploadRoutes');
 const swaggerSpec = require('./docs/swaggerSpec');
 const { notFound, errorHandler } = require('./middlewares/errorMiddleware');
 
+const env = require('./config/env');
+
 const app = express();
 
-app.use(cors());
+// CORS: Restrict to frontend origin in production
+app.use(cors({
+  origin: env.nodeEnv === 'production'
+    ? env.frontendUrl
+    : ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  credentials: true,
+}));
+
+// Parse cookies (needed for CSRF token validation)
+app.use(cookieParser());
+
+// Security headers
 app.use(helmet());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+
+// Body parser with size limit (prevents large payload DoS)
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 if (process.env.NODE_ENV !== 'production') {
   app.use(morgan('dev'));
@@ -42,6 +62,10 @@ app.use('/api/requests', requestRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/invoices', invoiceRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/cafe', cafeRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/upload', uploadRoutes);
 
 
 app.use(notFound);

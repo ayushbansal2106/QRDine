@@ -12,6 +12,11 @@ const tableSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    publicId: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
     guestUrl: {
       type: String,
       trim: true,

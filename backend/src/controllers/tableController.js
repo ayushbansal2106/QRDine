@@ -38,9 +38,9 @@ const validateTablePayload = ({ tableNumber, isActive }) => {
   return errors;
 };
 
-const buildGuestUrl = (tableId) => {
-  const frontendUrl = process.env.FRONTEND_PUBLIC_URL || 'https://qrdine.local';
-  return `${frontendUrl}/table/${tableId}`;
+const buildGuestUrl = (publicId) => {
+  const frontendUrl = process.env.FRONTEND_PUBLIC_URL || 'http://localhost:3000';
+  return `${frontendUrl}/table/${publicId}`;
 };
 
 const getTables = asyncHandler(async (req, res) => {
@@ -89,15 +89,19 @@ const createTable = asyncHandler(async (req, res) => {
     throw new AppError('Table number already exists for this cafe', 409);
   }
 
+  const crypto = require('crypto');
+  const publicId = 'tbl_' + crypto.randomBytes(12).toString('hex');
+
   const table = await Table.create({
     cafeId: req.cafeId,
     tableNumber: normalizedTableNumber,
+    publicId,
     guestUrl: '',
     qrCodeUrl: '',
     isActive,
   });
 
-  table.guestUrl = buildGuestUrl(table._id);
+  table.guestUrl = buildGuestUrl(table.publicId);
   await table.save();
 
   res.status(201).json({
@@ -204,9 +208,9 @@ const getTableQr = asyncHandler(async (req, res) => {
 
 const getTablePublic = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  let table;
+  let table = await Table.findOne({ publicId: id });
 
-  if (isValidObjectId(id)) {
+  if (!table && isValidObjectId(id)) {
     table = await Table.findById(id);
   }
 

@@ -16,6 +16,7 @@ export const AdminSidebar: React.FC = () => {
     { label: "Waiter Calls", path: "/admin/requests", icon: "ring_volume" },
     { label: "Bills", path: "/admin/bills", icon: "receipt_long" },
     { label: "Sales History", path: "/admin/sales", icon: "trending_up" },
+    { label: "Analytics", path: "/admin/analytics", icon: "analytics" },
     { label: "QR Codes", path: "/admin/qr", icon: "qr_code" },
     { label: "Settings", path: "/admin/settings", icon: "settings" },
   ];

@@ -7,6 +7,7 @@ import { TopAppBar } from "@/components/layout/TopAppBar";
 import { Button } from "@/components/common/Button";
 import { Modal } from "@/components/common/Modal";
 import { formatCurrency } from "@/utils/currency";
+import { uploadImage } from "@/actions/upload";
 import {
   createMenuItem,
   updateMenuItem,
@@ -56,6 +57,8 @@ export const MenuManagementClient: React.FC<MenuManagementClientProps> = ({
   const [itemAvailable, setItemAvailable] = useState(true);
   const [itemImage, setItemImage] = useState("");
   const [itemGstPercentage, setItemGstPercentage] = useState<string>("0");
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [uploadPreviewUrl, setUploadPreviewUrl] = useState<string | null>(null);
 
   // Helper to get count of items in a category
   const getItemCount = (catId: string) => {
@@ -292,6 +295,44 @@ export const MenuManagementClient: React.FC<MenuManagementClientProps> = ({
         alert(err.message || "Failed to delete item");
       }
     });
+  };
+
+  // ─── Image Upload Handler ────────────────────────────
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (!allowedTypes.includes(file.type)) {
+      alert("Invalid file type. Please select a JPEG, PNG, WebP, or GIF image.");
+      e.target.value = "";
+      return;
+    }
+
+    // Validate file size (5 MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      alert("File is too large. Maximum size is 5 MB.");
+      e.target.value = "";
+      return;
+    }
+
+    // Show local preview immediately
+    const localPreview = URL.createObjectURL(file);
+    setUploadPreviewUrl(localPreview);
+
+    // Upload to Cloudinary via backend
+    setUploadingFile(true);
+    try {
+      const url = await uploadImage(file);
+      setItemImage(url);
+    } catch (err: any) {
+      alert(err.message || "Failed to upload image.");
+      setUploadPreviewUrl(null);
+    } finally {
+      setUploadingFile(false);
+      e.target.value = "";
+    }
   };
 
   // Filter and Sort Items
@@ -695,13 +736,93 @@ export const MenuManagementClient: React.FC<MenuManagementClientProps> = ({
             />
           </div>
           <div className="flex flex-col gap-xs">
-            <label className="font-semibold text-label-md text-on-surface">Image URL (Optional)</label>
-            <input
-              value={itemImage}
-              onChange={(e) => setItemImage(e.target.value)}
-              className="bg-surface-container-low rounded-lg p-sm border-none text-body-md text-on-surface placeholder-on-surface-variant/40 focus:ring-1 focus:ring-primary outline-none"
-              placeholder="https://example.com/image.jpg"
-            />
+            <label className="font-semibold text-label-md text-on-surface">
+              Item Image
+            </label>
+            <div className="flex flex-col gap-sm">
+              {/* Drop zone / preview area */}
+              <div
+                className={`relative border-2 border-dashed rounded-xl p-md text-center transition-all cursor-pointer ${
+                  uploadPreviewUrl || itemImage
+                    ? "border-primary bg-primary/5"
+                    : "border-surface-container hover:border-primary/40 hover:bg-surface-container-low"
+                }`}
+                onClick={() => document.getElementById("add-item-image-input")?.click()}
+              >
+                {uploadingFile ? (
+                  <div className="flex flex-col items-center gap-sm py-md">
+                    <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin" />
+                    <span className="font-inter text-body-sm text-on-surface-variant">
+                      Uploading image...
+                    </span>
+                  </div>
+                ) : uploadPreviewUrl || itemImage ? (
+                  <div className="relative group">
+                    <img
+                      src={uploadPreviewUrl || itemImage}
+                      alt="Preview"
+                      className="w-full h-32 object-cover rounded-lg"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = "none";
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setItemImage("");
+                        setUploadPreviewUrl(null);
+                      }}
+                      className="absolute top-1 right-1 w-7 h-7 rounded-full bg-on-surface/60 text-white flex items-center justify-center hover:bg-error transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">close</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-sm py-md">
+                    <span className="material-symbols-outlined text-[36px] text-on-surface-variant/30">
+                      add_photo_alternate
+                    </span>
+                    <div>
+                      <p className="font-inter font-semibold text-body-sm text-on-surface">
+                        Click to upload image
+                      </p>
+                      <p className="font-inter text-label-sm text-on-surface-variant mt-xs">
+                        JPEG, PNG, WebP, GIF · Max 5 MB
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Hidden file input */}
+              <input
+                id="add-item-image-input"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="hidden"
+                onChange={handleFileSelect}
+              />
+
+              {/* OR URL fallback */}
+              <div className="flex items-center gap-xs">
+                <div className="flex-1 h-px bg-surface-container" />
+                <span className="font-inter text-label-sm text-on-surface-variant shrink-0">
+                  or paste URL
+                </span>
+                <div className="flex-1 h-px bg-surface-container" />
+              </div>
+              <input
+                type="url"
+                value={itemImage}
+                onChange={(e) => {
+                  setItemImage(e.target.value);
+                  setUploadPreviewUrl(null);
+                }}
+                placeholder="https://example.com/image.jpg"
+                className="w-full bg-surface-container-low rounded-lg p-sm border-none text-body-md text-on-surface placeholder-on-surface-variant/40 focus:ring-1 focus:ring-primary outline-none"
+              />
+            </div>
           </div>
           <div className="flex items-center gap-sm py-xs">
             <label className="font-semibold text-label-md text-on-surface">Available</label>
@@ -716,7 +837,7 @@ export const MenuManagementClient: React.FC<MenuManagementClientProps> = ({
             <Button variant="ghost" onClick={() => setIsAddItemOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" variant="primary" disabled={isPending}>
+            <Button type="submit" variant="primary" disabled={isPending || uploadingFile}>
               {isPending ? "Adding..." : "Add Item"}
             </Button>
           </div>

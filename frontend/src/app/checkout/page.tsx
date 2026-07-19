@@ -6,15 +6,19 @@ import { useRouter } from "next/navigation";
 import { TopAppBar } from "@/components/layout/TopAppBar";
 import { Button } from "@/components/common/Button";
 import { useCartStore } from "@/store/cartStore";
+import { useSessionStore } from "@/store/sessionStore";
 import { createOrder } from "@/actions/orders";
 import { formatCurrency } from "@/utils/currency";
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { items, getTotalPrice, tableId, sessionId, clearCart } = useCartStore();
+  const { sessionStatus } = useSessionStore();
+  const isSessionLocked = sessionStatus === 'bill_requested' || sessionStatus === 'awaiting_payment';
   const [mounted, setMounted] = useState(false);
   const [notes, setNotes] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [clientRequestId] = useState(() => crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15));
 
   useEffect(() => {
     setMounted(true);
@@ -67,16 +71,18 @@ export default function CheckoutPage() {
         price: Number(i.menuItem.price),
       }));
 
-      const res = await createOrder(tableId, mappedItems, notes, sessionId);
+      const { participantId } = useSessionStore.getState();
+
+      const res = await createOrder(tableId, mappedItems, notes, sessionId, participantId, clientRequestId);
       if (res.success) {
         // Clear local cart
         clearCart();
         // Redirect to success screen
         router.push(`/order/success/${res.orderId}`);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Failed to place order. Please try again.");
+      alert(err.message || "Failed to place order. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -141,6 +147,13 @@ export default function CheckoutPage() {
               <span>{formatCurrency(total)}</span>
             </div>
           </div>
+          
+          {isSessionLocked && (
+            <div className="bg-warning/10 text-warning text-body-sm font-inter rounded-lg p-sm mb-md flex items-center gap-sm">
+              <span className="material-symbols-outlined text-[20px]">lock</span>
+              This table is currently settling the bill. Additional orders cannot be placed.
+            </div>
+          )}
         </div>
 
         {/* Actions */}
@@ -149,9 +162,9 @@ export default function CheckoutPage() {
           fullWidth
           className="h-12"
           onClick={handlePlaceOrder}
-          disabled={isLoading}
+          disabled={isLoading || isSessionLocked}
         >
-          {isLoading ? "Placing Order..." : "Confirm & Place Order"}
+          {isSessionLocked ? "Table Locked" : isLoading ? "Placing Order..." : "Confirm & Place Order"}
         </Button>
       </main>
     </div>

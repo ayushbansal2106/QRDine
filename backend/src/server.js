@@ -30,6 +30,11 @@ const startServer = async () => {
       console.log(`Socket ${socket.id} joined order room: order-${orderId}`);
     });
 
+    socket.on('join-session', (sessionId) => {
+      socket.join(`session-${sessionId}`);
+      console.log(`Socket ${socket.id} joined session room: session-${sessionId}`);
+    });
+
     socket.on('disconnect', () => {
       console.log('A user disconnected:', socket.id);
     });
