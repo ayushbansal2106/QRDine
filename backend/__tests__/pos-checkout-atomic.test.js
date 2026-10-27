@@ -161,8 +161,8 @@ describe('ISSUE-31 — a counter sale is created and settled in one request', ()
     expect(mockCreateOrder).toHaveBeenCalledWith(
       expect.objectContaining({
         channel: 'pos',
-        // `pending` here is exactly what kept paid orders out of order history.
-        initialStatus: 'served',
+        // `accepted` routes it directly to KDS for kitchen preparation while marked paid
+        initialStatus: 'accepted',
         createdByStaffId: owner._id,
       })
     );

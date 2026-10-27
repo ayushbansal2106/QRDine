@@ -23,6 +23,11 @@ const getTransporter = () => {
       user: env.smtpUser,
       pass: env.smtpPass,
     },
+    // Force IPv4 to avoid 2-3 minute IPv6 DNS/TCP connection timeouts on cloud hosts (Render/AWS)
+    family: 4,
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
   });
 
   return transporter;

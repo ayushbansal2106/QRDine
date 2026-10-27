@@ -65,6 +65,12 @@ const validateCsrfToken = (req, res, next) => {
   const headerToken = req.headers['x-csrf-token'];
   const cookieToken = req.cookies && req.cookies[COOKIE_NAME];
 
+  // Requests authenticated explicitly via custom headers (e.g. x-customer-token from Next.js server actions)
+  // cannot be forged by cross-site forms (OWASP custom request header defense).
+  if (!headerToken && !cookieToken && req.headers['x-customer-token']) {
+    return next();
+  }
+
   if (!headerToken || !cookieToken) {
     return res.status(403).json({
       success: false,

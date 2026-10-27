@@ -284,6 +284,10 @@ const requestEmailOtp = asyncHandler(async (req, res) => {
     cafeId: req.customer.cafeId,
   });
 
+  if (!sent.sent) {
+    throw new AppError(sent.reason || 'Could not send verification email. Please check the address or try again.', 500);
+  }
+
   res.status(200).json({
     success: true,
     message: 'We sent a 6-digit code to your email',

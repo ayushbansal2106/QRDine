@@ -318,7 +318,14 @@ const setPreference = async (key: "vegOnly" | "notifications", value: boolean) =
                   disabled={busyKey === "email-verify" || emailCode.length !== 6}
                   fullWidth
                 >
-                  Verify
+                  {busyKey === "email-verify" ? (
+                    <>
+                      <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-on-primary border-t-transparent" />
+                      <span>Verifying...</span>
+                    </>
+                  ) : (
+                    "Verify"
+                  )}
                 </Button>
                 <Button variant="secondary" onClick={() => setEmailSent(false)}>
                   Cancel
@@ -346,7 +353,14 @@ const setPreference = async (key: "vegOnly" | "notifications", value: boolean) =
                 onClick={sendEmailCode}
                 disabled={busyKey === "email" || !emailDraft.includes("@")}
               >
-                Send code
+                {busyKey === "email" ? (
+                  <>
+                    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                    <span>Sending code...</span>
+                  </>
+                ) : (
+                  "Send code"
+                )}
               </Button>
             </div>
           )}

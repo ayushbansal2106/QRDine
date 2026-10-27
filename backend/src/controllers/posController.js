@@ -347,10 +347,9 @@ const checkoutPosOrder = asyncHandler(async (req, res) => {
     couponStrict: true,
     // Staff are on the premises; the QR geofence does not apply to the counter.
     enforceGeofence: false,
-    // The tender is already confirmed at this point, so the order is born
-    // settled. A `pending` counter order would sit on the orders board forever
-    // and stay out of the customer's order history.
-    initialStatus: 'served',
+    // The payment is settled at the till, and the order is born accepted
+    // so it immediately appears on the Kitchen Display System (KDS) for preparation.
+    initialStatus: 'accepted',
   });
 
   // An idempotent replay returns the original order; settling it twice would
