@@ -104,6 +104,16 @@ app.use((req, res, next) => {
   next();
 });
 
+// Root endpoint for platform health probes (Render / load balancers)
+app.get('/', (req, res) => {
+  res.status(200).json({
+    name: 'QRDine API',
+    status: 'ok',
+    version: '1.0.0',
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // --- Health check -----------------------------------------------------
 // Load balancers and uptime monitors need an unauthenticated, cheap endpoint
 // that does not require a database round-trip to answer.
