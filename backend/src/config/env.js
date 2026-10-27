@@ -6,7 +6,7 @@ const env = {
   port: process.env.PORT || 5000,
   nodeEnv: process.env.NODE_ENV || 'development',
   mongodbUri: process.env.MONGODB_URI,
-  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+  frontendUrl: (process.env.FRONTEND_URL || 'http://localhost:3000').trim().replace(/\/+$/, ''),
   jwtSecret: process.env.JWT_SECRET,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
   cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME || '',
@@ -45,7 +45,7 @@ const env = {
   // Re-verify after any model change: node scripts/probe-gemini-vision.js
   geminiModel: process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite',
   // Module #11 — public base used when writing NFC/QR tag payloads
-  frontendPublicUrl: process.env.FRONTEND_PUBLIC_URL || 'http://localhost:3000',
+  frontendPublicUrl: (process.env.FRONTEND_PUBLIC_URL || 'http://localhost:3000').trim().replace(/\/+$/, ''),
   apiPublicUrl: process.env.API_PUBLIC_URL || '',
   // Error tracking (BLOCKER-04). Absent DSN = disabled, never fatal: a missing
   // third-party SDK must not stop the ordering API from booting.
@@ -58,10 +58,10 @@ const env = {
   pgEncryptionKey: (process.env.PG_ENCRYPTION_KEY || '').trim(),
   pgEncryptionKeyPrevious: (process.env.PG_ENCRYPTION_KEY_PREVIOUS || '').trim(),
   // SEC-104: Comma-separated allowed CORS origins. Falls back to frontendUrl
-  // for single-domain deployments.
+  // for single-domain deployments. Strips trailing slashes to match browser Origin headers.
   allowedOrigins: (() => {
     const raw = (process.env.ALLOWED_ORIGINS || '').trim();
-    if (raw) return raw.split(',').map((o) => o.trim()).filter(Boolean);
+    if (raw) return raw.split(',').map((o) => o.trim().replace(/\/+$/, '')).filter(Boolean);
     return null; // null = fall back to frontendUrl
   })(),
 };

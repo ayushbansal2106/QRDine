@@ -72,15 +72,23 @@ app.set('trust proxy', 1);
 // SEC-104: CORS Origin Lockdown.
 // In production, only explicitly allowed origins can make cross-origin requests.
 // In development, localhost variants are accepted for convenience.
+const normalizeUrl = (url) => (url ? url.trim().replace(/\/+$/, '') : '');
+
 const resolveAllowedOrigins = () => {
-  if (env.nodeEnv !== 'production') {
-    return ['http://localhost:3000', 'http://127.0.0.1:3000'];
-  }
+  let origins = [];
   if (env.allowedOrigins && env.allowedOrigins.length > 0) {
-    return env.allowedOrigins;
+    origins = env.allowedOrigins;
+  } else if (env.frontendUrl) {
+    origins = [env.frontendUrl];
   }
-  // Single-domain fallback: use frontendUrl.
-  return [env.frontendUrl];
+
+  // Strip trailing slashes so `https://example.com/` matches `https://example.com`
+  const normalized = origins.map(normalizeUrl).filter(Boolean);
+
+  if (env.nodeEnv !== 'production') {
+    return Array.from(new Set([...normalized, 'http://localhost:3000', 'http://127.0.0.1:3000']));
+  }
+  return normalized;
 };
 
 const allowedOrigins = resolveAllowedOrigins();
@@ -89,7 +97,9 @@ app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no Origin header (server-to-server, curl, health checks).
     if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) return callback(null, true);
+    const incoming = normalizeUrl(origin);
+    const isAllowed = allowedOrigins.some((allowed) => allowed === incoming);
+    if (isAllowed) return callback(null, true);
     // In development, be lenient but warn.
     if (env.nodeEnv !== 'production') return callback(null, true);
     callback(new Error(`CORS: Origin ${origin} is not allowed`));
