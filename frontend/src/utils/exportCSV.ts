@@ -1,9 +1,16 @@
 /**
+ * A row that can be exported. Cell values are `unknown` rather than `any`:
+ * every caller passes objects it has already built, and `escapeCSV` stringifies
+ * whatever it finds, so the exporter never needs to know the value's type.
+ */
+export type CSVRow = Record<string, unknown>;
+
+/**
  * Client-side CSV export utility.
  * Generates a CSV file from an array of objects and triggers a browser download.
  */
 export function exportToCSV(
-  data: Record<string, any>[],
+  data: CSVRow[],
   filename: string = "export"
 ): void {
   if (!data || data.length === 0) return;
@@ -14,7 +21,7 @@ export function exportToCSV(
   );
 
   // Escape CSV values (handle commas, quotes, newlines)
-  const escapeCSV = (value: any): string => {
+  const escapeCSV = (value: unknown): string => {
     if (value === null || value === undefined) return "";
     const str = String(value);
     if (str.includes(",") || str.includes('"') || str.includes("\n")) {

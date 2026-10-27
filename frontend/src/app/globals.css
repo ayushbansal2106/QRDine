@@ -1,4 +1,13 @@
 @import "tailwindcss";
+/*
+ * Material Symbols is self-hosted from npm rather than linked from
+ * fonts.googleapis.com: the `<link>` in the root layout was a per-page custom
+ * font (every navigation re-requested it, and it was a render-blocking
+ * third-party origin), and Google served it without `font-display`, so icons
+ * popped in late. The npm package ships the same variable-axis woff2, so the
+ * `font-variation-settings` below still apply.
+ */
+@import "material-symbols/outlined.css";
 
 @theme {
   --color-primary: #51604f;
@@ -16,6 +25,34 @@
   --color-on-surface: #1b1c1c;
   --color-on-surface-variant: #444842;
   --color-error: #ba1a1a;
+  --color-error-container: #ffebee;
+  --color-on-error-container: #c62828;
+
+  /* Semantic status tokens.
+     These exist so status colours (success / warning / info) are part of the
+     theme rather than hardcoded hexes scattered through components. A hardcoded
+     `#2e7d32` keeps its old value when the palette changes, so the UI ends up
+     half-restyled. Everything here moves with the theme. */
+  --color-success: #2e7d32;
+  --color-success-container: #e8f5e9;
+  --color-on-success-container: #1b5e20;
+  --color-warning: #e65100;
+  --color-warning-container: #fff3e0;
+  --color-on-warning-container: #f57f17;
+  --color-info: #1565c0;
+  --color-info-container: #e3f2fd;
+  --color-on-info-container: #0d47a1;
+
+  /* "Active / live" accent used by status badges (e.g. an active table). */
+  --color-active-accent: #6ffbbe;
+  --color-on-active-accent: #002113;
+
+  /* One-off highlight surfaces used by stat tiles and info callouts. */
+  --color-accent-mint-container: #eaf8f4;
+  --color-accent-violet-container: #f3e5f5;
+  --color-on-accent-violet-container: #6a1b9a;
+  --color-accent-cyan-container: #e0f7fa;
+  --color-accent-amber-container: #fff8e1;
 
   --font-inter: var(--font-inter);
 

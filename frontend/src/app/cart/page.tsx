@@ -1,24 +1,24 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import Link from "next/link";
 import { TopAppBar } from "@/components/layout/TopAppBar";
 import { CartItem } from "@/components/cart/CartItem";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Button } from "@/components/common/Button";
-import { useCartStore } from "@/store/cartStore";
+import { cartLineKey, useCartStore } from "@/store/cartStore";
 import { formatCurrency } from "@/utils/currency";
 import { ActivityFeedList } from "@/components/cart/ActivityFeedList";
+import { useHydrated } from "@/hooks/useHydrated";
 
 export default function CartPage() {
-  const { items, getTotalPrice, tableId } = useCartStore();
-  const [mounted, setMounted] = useState(false);
+  const { items, tableId } = useCartStore();
+  // The cart is rehydrated from localStorage on the client, so the server's
+  // render is necessarily empty. Gate the real contents on the client taking
+  // over rather than flipping a flag from an effect.
+  const hydrated = useHydrated();
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
+  if (!hydrated) {
     return (
       <div className="min-h-screen flex flex-col bg-background">
         <TopAppBar title="Your Cart" showBack />
@@ -49,7 +49,7 @@ export default function CartPage() {
             {/* Cart Items List */}
             <div className="bg-surface-container-lowest rounded-xl p-md shadow-[0px_4px_20px_rgba(0,0,0,0.04)] mb-md">
               {items.map((item) => (
-                <CartItem key={item.menuItem.id} item={item} />
+                <CartItem key={cartLineKey(item)} item={item} />
               ))}
             </div>
 

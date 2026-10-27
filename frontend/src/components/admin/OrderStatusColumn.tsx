@@ -1,19 +1,17 @@
 "use client";
 
 import React from "react";
-import { Order, OrderStatus } from "@/types";
+import { Order } from "@/types";
 import { OrderTicket } from "./OrderTicket";
 
 interface OrderStatusColumnProps {
   title: string;
-  status: OrderStatus;
   orders: Order[];
   onOrderUpdated?: () => void;
 }
 
 export const OrderStatusColumn: React.FC<OrderStatusColumnProps> = ({
   title,
-  status,
   orders,
   onOrderUpdated,
 }) => {

@@ -1,4 +1,5 @@
 "use client";
+import { thrownMessage } from "@/lib/errorMessage";
 
 import React, { useState, useEffect, useRef } from "react";
 import { getAnalyticsOverview } from "@/actions/analytics";
@@ -89,8 +90,8 @@ const KPICard: React.FC<KPICardProps> = ({
           <div
             className={`flex items-center gap-[2px] px-xs py-[2px] rounded-full text-[11px] font-inter font-bold ${
               isPositive
-                ? "bg-[#e8f5e9] text-[#2e7d32]"
-                : "bg-[#ffebee] text-[#c62828]"
+                ? "bg-success-container text-success"
+                : "bg-error-container text-on-error-container"
             }`}
           >
             <span className="material-symbols-outlined text-[14px]">
@@ -137,8 +138,8 @@ export const OverviewCards: React.FC = () => {
       try {
         const result = await getAnalyticsOverview();
         setData(result.overview);
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        setError(thrownMessage(err, "Failed to load analytics."));
       } finally {
         setIsLoading(false);
       }

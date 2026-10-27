@@ -5,12 +5,15 @@ import { Socket } from "socket.io-client";
 interface SocketState {
   socket: Socket | null;
   isConnected: boolean;
+  isReconnecting: boolean;
+  lastDisconnectedAt: number | null;
+  reconnectCount: number;
   joinedRooms: Set<string>;
   connect: () => void;
   disconnect: () => void;
   joinRoom: (room: string) => void;
   leaveRoom: (room: string) => void;
-  emit: (event: string, data: any) => void;
+  emit: (event: string, data?: unknown) => void;
 }
 
 let listenersAdded = false;
@@ -18,13 +21,16 @@ let listenersAdded = false;
 export const useSocketStore = create<SocketState>((set, get) => ({
   socket: null,
   isConnected: false,
+  isReconnecting: false,
+  lastDisconnectedAt: null,
+  reconnectCount: 0,
   joinedRooms: new Set<string>(),
   connect: () => {
     const s = getSocket();
 
     if (!listenersAdded) {
       s.on("connect", () => {
-        set({ isConnected: true });
+        set({ isConnected: true, isReconnecting: false, reconnectCount: 0 });
         console.log("Connected to socket server");
 
         // Automatically rejoin all rooms from store state on connect/reconnect
@@ -46,9 +52,37 @@ export const useSocketStore = create<SocketState>((set, get) => ({
         });
       });
 
-      s.on("disconnect", () => {
-        set({ isConnected: false });
-        console.log("Disconnected from socket server");
+      s.on("disconnect", (reason) => {
+        console.log("Disconnected from socket server:", reason);
+        set({
+          isConnected: false,
+          isReconnecting: reason !== "io client disconnect",
+          lastDisconnectedAt: Date.now(),
+        });
+      });
+
+      s.on("connect_error", (error) => {
+        console.warn("Socket connect error:", error.message);
+        set((state) => ({
+          isConnected: false,
+          isReconnecting: true,
+          reconnectCount: state.reconnectCount + 1,
+        }));
+      });
+
+      s.io?.on("reconnect_attempt", (attempt) => {
+        console.log(`Socket reconnect attempt #${attempt}`);
+        set({ isConnected: false, isReconnecting: true, reconnectCount: attempt });
+      });
+
+      s.io?.on("reconnect", () => {
+        console.log("Socket successfully reconnected");
+        set({ isConnected: true, isReconnecting: false, reconnectCount: 0 });
+      });
+
+      s.io?.on("reconnect_failed", () => {
+        console.error("Socket reconnection failed after maximum attempts");
+        set({ isConnected: false, isReconnecting: false });
       });
 
       listenersAdded = true;

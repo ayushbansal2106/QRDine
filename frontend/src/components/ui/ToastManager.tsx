@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useSessionStore } from "@/store/sessionStore";
 
 interface Toast {
@@ -12,7 +12,16 @@ interface Toast {
 export const ToastManager: React.FC = () => {
   const { activityFeed } = useSessionStore();
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [lastProcessedTimestamp, setLastProcessedTimestamp] = useState<number>(Date.now());
+  /**
+   * The watermark for "have I already toasted this?", in a ref rather than
+   * state: it is bookkeeping, not something to render, and reading the clock
+   * to seed it in a `useState` argument is an impure call in the render body.
+   *
+   * `null` means "nothing seen yet", so the first effect run adopts the current
+   * head of the feed as its starting point without showing a toast for the
+   * activities that were already on screen when the component mounted.
+   */
+  const lastProcessedTimestamp = useRef<number | null>(null);
 
   useEffect(() => {
     if (activityFeed.length === 0) return;
@@ -20,8 +29,14 @@ export const ToastManager: React.FC = () => {
     const latestActivity = activityFeed[activityFeed.length - 1];
     const activityTimestamp = new Date(latestActivity.timestamp).getTime();
 
+    if (lastProcessedTimestamp.current === null) {
+      // First run: treat everything currently in the feed as already seen.
+      lastProcessedTimestamp.current = activityTimestamp;
+      return;
+    }
+
     // Only show toast for new activities that happened after component mounted or last processed
-    if (activityTimestamp > lastProcessedTimestamp) {
+    if (activityTimestamp > lastProcessedTimestamp.current) {
       const newToast: Toast = {
         id: Math.random().toString(36).substring(7),
         message: latestActivity.message,
@@ -29,19 +44,19 @@ export const ToastManager: React.FC = () => {
       };
 
       setToasts((prev) => [...prev, newToast]);
-      setLastProcessedTimestamp(activityTimestamp);
+      lastProcessedTimestamp.current = activityTimestamp;
 
       // Auto dismiss after 4 seconds
       setTimeout(() => {
         setToasts((prev) => prev.filter((t) => t.id !== newToast.id));
       }, 4000);
     }
-  }, [activityFeed, lastProcessedTimestamp]);
+  }, [activityFeed]);
 
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 pointer-events-none w-full max-w-sm px-4">
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 pointer-events-none w-full max-w-[24rem] px-4">
       {toasts.map((toast) => {
         let icon = "info";
         switch (toast.type) {

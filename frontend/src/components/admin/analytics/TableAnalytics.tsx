@@ -67,31 +67,31 @@ export const TableAnalytics: React.FC = () => {
       {/* Highlights */}
       {!isLoading && topTable && leastUsedTable && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-sm">
-          <div className="bg-[#e8f5e9] border-2 border-[#66bb6a] rounded-xl p-md">
+          <div className="bg-success-container border-2 border-success rounded-xl p-md">
             <div className="flex items-center gap-xs mb-xs">
               <span className="text-[18px]">🏆</span>
-              <span className="font-inter font-semibold text-body-sm text-[#2e7d32]">
+              <span className="font-inter font-semibold text-body-sm text-success">
                 Most Profitable
               </span>
             </div>
-            <p className="font-inter font-bold text-headline-sm text-[#1b5e20]">
+            <p className="font-inter font-bold text-headline-sm text-on-success-container">
               Table {topTable.tableNumber}
             </p>
-            <p className="font-inter text-label-sm text-[#2e7d32]">
+            <p className="font-inter text-label-sm text-success">
               {formatCurrency(topTable.revenue)} · {topTable.orderCount} orders
             </p>
           </div>
-          <div className="bg-[#fff8e1] border-2 border-[#ffca28] rounded-xl p-md">
+          <div className="bg-accent-amber-container border-2 border-warning rounded-xl p-md">
             <div className="flex items-center gap-xs mb-xs">
               <span className="text-[18px]">⚠️</span>
-              <span className="font-inter font-semibold text-body-sm text-[#f57f17]">
+              <span className="font-inter font-semibold text-body-sm text-on-warning-container">
                 Least Used
               </span>
             </div>
-            <p className="font-inter font-bold text-headline-sm text-[#e65100]">
+            <p className="font-inter font-bold text-headline-sm text-warning">
               Table {leastUsedTable.tableNumber}
             </p>
-            <p className="font-inter text-label-sm text-[#f57f17]">
+            <p className="font-inter text-label-sm text-on-warning-container">
               {formatCurrency(leastUsedTable.revenue)} ·{" "}
               {leastUsedTable.orderCount} orders
             </p>
@@ -139,7 +139,7 @@ export const TableAnalytics: React.FC = () => {
                 </h4>
                 <span
                   className={`w-2.5 h-2.5 rounded-full ${
-                    table.isOccupied ? "bg-[#2e7d32] animate-pulse" : "bg-surface-container-high"
+                    table.isOccupied ? "bg-success animate-pulse" : "bg-surface-container-high"
                   }`}
                   title={table.isOccupied ? "Occupied" : "Free"}
                 />

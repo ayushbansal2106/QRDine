@@ -1,6 +1,7 @@
 "use server";
 
 import { apiClient } from "@/lib/apiClient";
+import { apiErrorMessage, thrownMessage } from "@/lib/errorMessage";
 
 /**
  * Upload an image file to the server, which forwards it to Cloudinary.
@@ -25,12 +26,18 @@ export async function uploadImage(file: File): Promise<string> {
     }
 
     throw new Error(response.data?.message || "Upload failed");
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Image upload failed:", error);
-    const message =
-      error.response?.data?.message ||
-      error.message ||
-      "Failed to upload image. Please check your Cloudinary configuration.";
+    // Three rungs, in order: the server's own message, then whatever the thrown
+    // Error says, then the config hint. `apiErrorMessage` covers the first and
+    // `thrownMessage` the second, so the fallback only fires when both are empty.
+    const message = apiErrorMessage(
+      error,
+      thrownMessage(
+        error,
+        "Failed to upload image. Please check your Cloudinary configuration."
+      )
+    );
     throw new Error(message);
   }
 }

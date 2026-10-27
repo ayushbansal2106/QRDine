@@ -4,6 +4,7 @@
  */
 
 const { mockReq, mockRes, mockNext } = require('./setup');
+const mongoose = require('mongoose');
 
 // ─── Module-level mock functions ────────────────────────────────
 const mockDiningSessionFind = jest.fn();
@@ -11,6 +12,10 @@ const mockOrderFind = jest.fn();
 const mockOrderCountDocuments = jest.fn();
 const mockDailySummaryFind = jest.fn();
 const mockInvoiceFindOne = jest.fn();
+const mockInvoiceFind = jest.fn();
+const mockDiningSessionCountDocuments = jest.fn();
+const mockDiningSessionAggregate = jest.fn();
+const mockOrderAggregate = jest.fn();
 
 // ─── Register mocks ONCE at top level ───────────────────────────
 jest.mock('../src/models/DiningSession', () => {
@@ -22,7 +27,8 @@ jest.mock('../src/models/DiningSession', () => {
     });
   };
   DiningSession.find = (...a) => mockDiningSessionFind(...a);
-  DiningSession.countDocuments = jest.fn();
+  DiningSession.countDocuments = (...a) => mockDiningSessionCountDocuments(...a);
+  DiningSession.aggregate = (...a) => mockDiningSessionAggregate(...a);
   return DiningSession;
 });
 
@@ -30,6 +36,7 @@ jest.mock('../src/models/Order', () => {
   const Order = function (data) { Object.assign(this, data); this._id = data._id || 'mock-order-id'; };
   Order.find = (...a) => mockOrderFind(...a);
   Order.countDocuments = (...a) => mockOrderCountDocuments(...a);
+  Order.aggregate = (...a) => mockOrderAggregate(...a);
   return Order;
 });
 
@@ -42,6 +49,7 @@ jest.mock('../src/models/DailySummary', () => {
 jest.mock('../src/models/Invoice', () => {
   const Invoice = function (data) { Object.assign(this, data); this._id = data._id || 'mock-invoice-id'; };
   Invoice.findOne = (...a) => mockInvoiceFindOne(...a);
+  Invoice.find = (...a) => mockInvoiceFind(...a);
   return Invoice;
 });
 
@@ -51,7 +59,10 @@ const { getBills, getSalesHistory, getAnalytics } = require('../src/controllers/
 afterEach(() => { jest.clearAllMocks(); });
 
 // ─── Helpers ────────────────────────────────────────────────────
-const cafeId = 'cafe-001';
+// A real 24-character hex id. `tenantMiddleware` always supplies one, and
+// `getSalesHistory` casts it for its aggregations, so a malformed fixture here
+// would fail for a reason production never hits.
+const cafeId = '507f1f77bcf86cd799439011';
 
 function makeMockSession(overrides = {}) {
   return {
@@ -146,10 +157,11 @@ describe('Billing — getBills', () => {
     expect(responseData.bills[0].orderCount).toBe(1);
   });
 
-  it('should calculate running total from served items only', async () => {
+  it('should bill for food that is still in the kitchen', async () => {
     const session = makeMockSession();
-    // Controller: if item.status === 'served' || order.status === 'served' => count ALL items
-    // So to test served-items-only counting, order.status must NOT be 'served'
+    // A bill is what the guest asked for. Food still being prepared is still
+    // food they ordered — the old `served` gate showed this table a total of
+    // ₹157.50 less than they were actually going to be charged.
     const order = makeMockOrder({
       status: 'preparing',
       items: [
@@ -172,8 +184,38 @@ describe('Billing — getBills', () => {
     await getBills(req, res, next);
 
     const bill = res.json.mock.calls[0][0].bills[0];
-    // Only the served item counted: Espresso (120*2 + 12 = 252)
-    expect(bill.runningTotal).toBe(252);
+    // Espresso 120*2 + 12 = 252, plus Latte 150 + 7.5 = 157.50
+    expect(bill.runningTotal).toBe(409.5);
+  });
+
+  it('should not bill for items withdrawn mid-service', async () => {
+    const session = makeMockSession();
+    // The other half of the contract: money must never be taken for something
+    // the guest removed or the kitchen could not deliver.
+    const order = makeMockOrder({
+      status: 'served',
+      items: [
+        { _id: 'item-001', itemName: 'Espresso', quantity: 1, price: 120, gstAmount: 12, status: 'served' },
+        { _id: 'item-002', itemName: 'Latte', quantity: 1, price: 150, gstAmount: 7.5, status: 'cancelled' },
+        { _id: 'item-003', itemName: 'Muffin', quantity: 1, price: 80, gstAmount: 4, status: 'partially_cancelled' },
+      ],
+    });
+
+    const req = mockReq({ cafeId, query: {} });
+    const res = mockRes();
+    const next = mockNext();
+
+    mockDiningSessionFind.mockReturnValue({
+      sort: jest.fn().mockReturnValue({
+        populate: jest.fn().mockResolvedValue([session]),
+      }),
+    });
+    mockOrderFind.mockResolvedValue([order]);
+
+    await getBills(req, res, next);
+
+    // Only the Espresso line survives.
+    expect(res.json.mock.calls[0][0].bills[0].runningTotal).toBe(132);
   });
 
   it('should apply bill adjustments to running total', async () => {
@@ -270,6 +312,46 @@ describe('Billing — getBills', () => {
 
 // ─── getSalesHistory ────────────────────────────────────────────
 describe('Billing — getSalesHistory', () => {
+  /**
+   * `getSalesHistory` reads two sources (closed sessions and settled counter
+   * sales) and merges them, so its mocks have to answer both sides plus the
+   * aggregate helpers. `lean()` terminates each query chain.
+   */
+  function mockSalesHistoryQueries({
+    sessions = [],
+    posOrders = [],
+    invoices = [],
+    orderCounts = [],
+    sessionTotals = [],
+    posTotals = [],
+    sessionCount = 0,
+    posCount = 0,
+  } = {}) {
+    // A permissive chain: each query builder method returns itself, so the
+    // mock does not care how many `populate`s a query happens to use.
+    const query = (result) => {
+      const chain = {
+        sort: () => chain,
+        populate: () => chain,
+        limit: () => chain,
+        skip: () => chain,
+        lean: jest.fn().mockResolvedValue(result),
+      };
+      return chain;
+    };
+
+    mockDiningSessionFind.mockReturnValue(query(sessions));
+    mockOrderFind.mockReturnValue(query(posOrders));
+    mockDiningSessionCountDocuments.mockResolvedValue(sessionCount);
+    mockOrderCountDocuments.mockResolvedValue(posCount);
+    // Three aggregations run: session revenue, POS revenue, per-session counts.
+    mockDiningSessionAggregate.mockResolvedValue(sessionTotals);
+    mockOrderAggregate
+      .mockResolvedValueOnce(posTotals)
+      .mockResolvedValue(orderCounts);
+    mockInvoiceFind.mockResolvedValue(invoices);
+  }
+
   it('should return closed sessions with pagination', async () => {
     const session = makeMockSession({ status: 'closed' });
 
@@ -277,20 +359,7 @@ describe('Billing — getSalesHistory', () => {
     const res = mockRes();
     const next = mockNext();
 
-    mockDiningSessionFind
-      .mockReturnValueOnce({
-        sort: jest.fn().mockReturnValue({
-          populate: jest.fn().mockReturnValue({
-            skip: jest.fn().mockReturnValue({
-              limit: jest.fn().mockResolvedValue([session]),
-            }),
-          }),
-        }),
-      })
-      .mockResolvedValueOnce([session]);
-
-    mockOrderCountDocuments.mockResolvedValue(1);
-    mockInvoiceFindOne.mockResolvedValue(null);
+    mockSalesHistoryQueries({ sessions: [session], sessionCount: 1 });
 
     await getSalesHistory(req, res, next);
 
@@ -298,6 +367,7 @@ describe('Billing — getSalesHistory', () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         sessions: expect.any(Array),
+        entries: expect.any(Array),
         summary: expect.objectContaining({ totalRevenue: expect.any(Number), sessionCount: expect.any(Number) }),
       })
     );
@@ -311,20 +381,11 @@ describe('Billing — getSalesHistory', () => {
     const res = mockRes();
     const next = mockNext();
 
-    mockDiningSessionFind
-      .mockReturnValueOnce({
-        sort: jest.fn().mockReturnValue({
-          populate: jest.fn().mockReturnValue({
-            skip: jest.fn().mockReturnValue({
-              limit: jest.fn().mockResolvedValue([session1, session2]),
-            }),
-          }),
-        }),
-      })
-      .mockResolvedValueOnce([session1, session2]);
-
-    mockOrderCountDocuments.mockResolvedValue(1);
-    mockInvoiceFindOne.mockResolvedValue(null);
+    mockSalesHistoryQueries({
+      sessions: [session1, session2],
+      sessionCount: 2,
+      sessionTotals: [{ revenue: 800, gst: 40 }],
+    });
 
     await getSalesHistory(req, res, next);
 
@@ -335,28 +396,113 @@ describe('Billing — getSalesHistory', () => {
     expect(summary.averageOrderValue).toBe(400);
   });
 
-  it('should include invoice data when available', async () => {
-    const session = makeMockSession({ status: 'closed' });
-    const mockInvoice = { _id: 'inv-001', invoiceNumber: 'INV-20260719-0001', pdfUrl: '/invoices/inv-001.pdf' };
+  it('should include settled counter sales alongside table sessions', async () => {
+    // The regression this guards: takings read only from DiningSession reported a
+    // cafe that rang up real counter money as having made none.
+    const posOrder = {
+      _id: 'order-pos-1',
+      orderNumber: 'ORD-20260719-0007',
+      channel: 'pos',
+      sessionId: null,
+      paymentStatus: 'paid',
+      status: 'served',
+      totalAmount: 450,
+      subtotal: 400,
+      totalGST: 50,
+      createdAt: new Date('2026-07-19T12:00:00Z'),
+      payments: [{ method: 'cash', amount: 450 }],
+      tableId: null,
+      customerId: { name: 'Ravi', email: 'ravi@example.com' },
+    };
 
     const req = mockReq({ cafeId, query: {} });
     const res = mockRes();
     const next = mockNext();
 
-    mockDiningSessionFind
-      .mockReturnValueOnce({
-        sort: jest.fn().mockReturnValue({
-          populate: jest.fn().mockReturnValue({
-            skip: jest.fn().mockReturnValue({
-              limit: jest.fn().mockResolvedValue([session]),
-            }),
-          }),
-        }),
-      })
-      .mockResolvedValueOnce([session]);
+    mockSalesHistoryQueries({
+      posOrders: [posOrder],
+      posCount: 1,
+      posTotals: [{ revenue: 450, gst: 50 }],
+    });
 
-    mockOrderCountDocuments.mockResolvedValue(1);
-    mockInvoiceFindOne.mockResolvedValue(mockInvoice);
+    await getSalesHistory(req, res, next);
+
+    const body = res.json.mock.calls[0][0];
+    expect(body.entries).toHaveLength(1);
+    expect(body.entries[0]).toEqual(
+      expect.objectContaining({
+        kind: 'pos_order',
+        orderNumber: 'ORD-20260719-0007',
+        customerName: 'Ravi',
+        totalAmount: 450,
+        paymentMethod: 'cash',
+        tableNumber: null,
+      })
+    );
+    expect(body.summary.totalRevenue).toBe(450);
+    expect(body.summary.totalGST).toBe(50);
+    expect(body.summary.sessionCount).toBe(1);
+  });
+
+  it('should exclude counter orders that were never paid', async () => {
+    // An abandoned payment popup used to leave a `pending` POS order behind. It
+    // is money that was never taken, so it must not reach the sales figures.
+    const req = mockReq({ cafeId, query: {} });
+    const res = mockRes();
+    const next = mockNext();
+
+    mockSalesHistoryQueries({ posOrders: [], posCount: 0, posTotals: [] });
+
+    await getSalesHistory(req, res, next);
+
+    expect(mockOrderFind).toHaveBeenCalledWith(
+      expect.objectContaining({
+        channel: 'pos',
+        sessionId: null,
+        paymentStatus: 'paid',
+        status: { $ne: 'cancelled' },
+      })
+    );
+    const body = res.json.mock.calls[0][0];
+    expect(body.entries).toHaveLength(0);
+    expect(body.summary.totalRevenue).toBe(0);
+  });
+
+  it('should cast the tenant id before aggregating', async () => {
+    // `aggregate()` hands the pipeline straight to the server and does NOT cast
+    // its filter the way `find()` does. `tenantMiddleware` supplies `cafeId` as
+    // a string, so an uncast id matches nothing: the rows render but the
+    // summary silently reads ₹0. This assertion exists because it happened.
+    const req = mockReq({ cafeId, query: {} });
+    const res = mockRes();
+    const next = mockNext();
+
+    mockSalesHistoryQueries({ posOrders: [], posCount: 0, posTotals: [] });
+
+    await getSalesHistory(req, res, next);
+
+    const sessionPipeline = mockDiningSessionAggregate.mock.calls[0][0];
+    const posPipeline = mockOrderAggregate.mock.calls[0][0];
+
+    for (const pipeline of [sessionPipeline, posPipeline]) {
+      expect(pipeline[0].$match.cafeId).toBeInstanceOf(mongoose.Types.ObjectId);
+      expect(pipeline[0].$match.cafeId.toString()).toBe(cafeId);
+    }
+  });
+
+  it('should include invoice data when available', async () => {
+    const session = makeMockSession({ status: 'closed' });
+    const mockInvoice = { _id: 'inv-001', sessionId: 'session-001', invoiceNumber: 'INV-20260719-0001', pdfUrl: '/invoices/inv-001.pdf' };
+
+    const req = mockReq({ cafeId, query: {} });
+    const res = mockRes();
+    const next = mockNext();
+
+    mockSalesHistoryQueries({
+      sessions: [session],
+      invoices: [mockInvoice],
+      orderCounts: [{ _id: 'session-001', count: 1 }],
+    });
 
     await getSalesHistory(req, res, next);
 
@@ -366,6 +512,7 @@ describe('Billing — getSalesHistory', () => {
       invoiceNumber: 'INV-20260719-0001',
       pdfUrl: '/invoices/inv-001.pdf',
     });
+    expect(enriched.orderCount).toBe(1);
   });
 
   it('should set invoice to null when no invoice exists', async () => {
@@ -375,20 +522,7 @@ describe('Billing — getSalesHistory', () => {
     const res = mockRes();
     const next = mockNext();
 
-    mockDiningSessionFind
-      .mockReturnValueOnce({
-        sort: jest.fn().mockReturnValue({
-          populate: jest.fn().mockReturnValue({
-            skip: jest.fn().mockReturnValue({
-              limit: jest.fn().mockResolvedValue([session]),
-            }),
-          }),
-        }),
-      })
-      .mockResolvedValueOnce([session]);
-
-    mockOrderCountDocuments.mockResolvedValue(0);
-    mockInvoiceFindOne.mockResolvedValue(null);
+    mockSalesHistoryQueries({ sessions: [session], invoices: [], orderCounts: [] });
 
     await getSalesHistory(req, res, next);
 

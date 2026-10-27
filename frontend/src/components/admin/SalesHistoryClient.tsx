@@ -1,13 +1,34 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { DiningSession } from "@/types";
-import { getSalesHistory } from "@/actions/billing";
+import { getSalesHistory, resendInvoiceEmail } from "@/actions/billing";
+import { Modal } from "@/components/common/Modal";
+import { Button } from "@/components/common/Button";
 import { formatCurrency } from "@/utils/currency";
 import { exportToCSV } from "@/utils/exportCSV";
 
+/**
+ * One row of takings. `kind` distinguishes a closed table session from a
+ * counter sale; the fields a given kind does not have are simply absent.
+ */
+interface SalesEntry {
+  kind: "session" | "pos_order";
+  id: string;
+  date: string;
+  orderNumber?: string | null;
+  customerName: string;
+  customerEmail: string;
+  tableNumber?: number | string | null;
+  orderCount: number;
+  subtotal: number;
+  gst: number;
+  totalAmount: number;
+  paymentMethod: string;
+  invoice?: { id: string; invoiceNumber: string; pdfUrl?: string } | null;
+}
+
 export const SalesHistoryClient: React.FC = () => {
-  const [sessions, setSessions] = useState<DiningSession[]>([]);
+  const [sessions, setSessions] = useState<SalesEntry[]>([]);
   const [summary, setSummary] = useState({
     totalRevenue: 0,
     totalGST: 0,
@@ -18,6 +39,16 @@ export const SalesHistoryClient: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<"today" | "week" | "month" | "all">("today");
+
+  // Invoice resend. `emailPromptFor` is the invoice awaiting an address;
+  // `resendNotice` reports the outcome of the last attempt either way.
+  const [emailPromptFor, setEmailPromptFor] = useState<SalesEntry | null>(null);
+  const [emailInput, setEmailInput] = useState("");
+  const [resendBusyId, setResendBusyId] = useState<string | null>(null);
+  const [resendNotice, setResendNotice] = useState<{
+    tone: "success" | "error";
+    message: string;
+  } | null>(null);
 
   // Advanced filters
   const [customerSearch, setCustomerSearch] = useState("");
@@ -47,31 +78,65 @@ export const SalesHistoryClient: React.FC = () => {
     }
   }, [dateRange]);
 
+  /**
+   * Fetch one page of takings.
+   *
+   * Returns the payload instead of writing it into state, and deliberately
+   * raises no "start" flag. The flag was previously raised at the top of this
+   * function, which made the mount effect write state synchronously before its
+   * first `await` — the exact cascading render `react-hooks/set-state-in-effect`
+   * rejects, and it also blanked the table on every page change. `isLoading` is
+   * seeded `true` and only cleared here, so the first paint shows a skeleton
+   * and later fetches swap rows in silently.
+   */
   const fetchHistory = useCallback(async () => {
-    setIsLoading(true);
     try {
       const filters = {
         ...getDateFilters(),
         page,
         limit: 20,
       };
-      const result = await getSalesHistory(filters);
-      setSessions(result.sessions || []);
-      setSummary(result.summary || { totalRevenue: 0, totalGST: 0, sessionCount: 0, averageOrderValue: 0 });
-      setTotalPages(result.totalPages || 1);
+      return await getSalesHistory(filters);
     } catch (err) {
       console.error("Failed to fetch sales history:", err);
-    } finally {
-      setIsLoading(false);
+      return null;
     }
   }, [page, getDateFilters]);
 
-  useEffect(() => {
+  // Changing the date range must return to page 1 — page 7 of "today" is not a
+  // valid page of "this month". Done during render rather than in an effect: an
+  // effect would fetch page 7 of the new range first, render it, and only then
+  // correct to page 1.
+  const [seededRange, setSeededRange] = useState(dateRange);
+  if (seededRange !== dateRange) {
+    setSeededRange(dateRange);
     setPage(1);
-  }, [dateRange]);
+  }
+
+  /** A filter or page the owner asked for. The spinner belongs here — the user
+   *  clicked, and the table they are looking at is about to be replaced — but
+   *  not in the effect, which also runs for the first load (already seeded) and
+   *  would then write state synchronously on every mount. */
+  const requestReload = () => setIsLoading(true);
 
   useEffect(() => {
-    fetchHistory();
+    let cancelled = false;
+    const run = async () => {
+      const result = await fetchHistory();
+      if (cancelled || !result) return;
+      // `entries` merges closed table sessions with settled counter sales. A
+      // cafe taking money over the till and a cafe serving QR tables are the
+      // same business, and the owner needs one takings figure, so both land in
+      // the same list.
+      setSessions(result.entries || result.sessions || []);
+      setSummary(result.summary || { totalRevenue: 0, totalGST: 0, sessionCount: 0, averageOrderValue: 0 });
+      setTotalPages(result.totalPages || 1);
+      setIsLoading(false);
+    };
+    void run();
+    return () => {
+      cancelled = true;
+    };
   }, [fetchHistory]);
 
   const datePresets: { label: string; value: typeof dateRange }[] = [
@@ -97,6 +162,14 @@ export const SalesHistoryClient: React.FC = () => {
         return "Online";
       case "paid_counter":
         return "Counter";
+      case "cash":
+        return "Cash";
+      case "upi_manual":
+        return "UPI";
+      case "card_manual":
+        return "Card";
+      case "wallet":
+        return "Wallet";
       default:
         return "Pending";
     }
@@ -105,16 +178,22 @@ export const SalesHistoryClient: React.FC = () => {
   const getPaymentBadgeStyle = (method: string) => {
     switch (method) {
       case "paid_online":
-        return "bg-[#e3f2fd] text-[#1565c0]";
+        return "bg-info-container text-info";
       case "paid_counter":
-        return "bg-[#fff3e0] text-[#e65100]";
+        return "bg-warning-container text-warning";
+      // Counter tenders are named by the till method rather than a session flag.
+      case "cash":
+      case "upi_manual":
+      case "card_manual":
+      case "wallet":
+        return "bg-success-container text-success";
       default:
         return "bg-surface-container text-on-surface-variant";
     }
   };
 
   // Apply client-side filters
-  const filteredSessions = sessions.filter((s: any) => {
+  const filteredSessions = sessions.filter((s: SalesEntry) => {
     if (customerSearch) {
       const search = customerSearch.toLowerCase();
       const nameMatch = s.customerName?.toLowerCase().includes(search);
@@ -127,12 +206,58 @@ export const SalesHistoryClient: React.FC = () => {
     return true;
   });
 
+  const openEmailPrompt = (entry: SalesEntry) => {
+    setEmailPromptFor(entry);
+    setEmailInput(entry.customerEmail || "");
+    setResendNotice(null);
+  };
+
+  /**
+   * Resend an invoice, offering to link an email when the guest never gave one.
+   *
+   * A 409 comes back as `needsEmail` rather than an error: there is simply
+   * nobody to send to yet, which is a prompt the staff can answer, not a
+   * failure. Supplying an address persists it to the customer's profile, so the
+   * next resend goes straight through.
+   */
+  const handleResend = async (entry: SalesEntry, email?: string) => {
+    if (!entry.invoice) return;
+    setResendBusyId(entry.id);
+    setResendNotice(null);
+    try {
+      const result = await resendInvoiceEmail(entry.invoice.id, email);
+
+      if (result.needsEmail) {
+        openEmailPrompt(entry);
+        return;
+      }
+
+      setEmailPromptFor(null);
+      setResendNotice(
+        result.emailSent
+          ? { tone: "success", message: result.message }
+          : // SMTP being unconfigured is a real deployment gap, not a bug in
+            // this flow — say so plainly rather than claiming it was sent.
+            { tone: "error", message: result.message }
+      );
+    } catch (err) {
+      setResendNotice({
+        tone: "error",
+        message: err instanceof Error ? err.message : "Failed to send the invoice.",
+      });
+    } finally {
+      setResendBusyId(null);
+    }
+  };
+
   const handleExportCSV = () => {
-    const exportData = filteredSessions.map((s: any) => ({
-      Date: formatDate(s.endedAt || s.startedAt),
+    const exportData = filteredSessions.map((s) => ({
+      Date: formatDate(s.date),
+      Source: s.kind === "pos_order" ? "Counter" : "Table",
       Customer: s.customerName,
       Email: s.customerEmail,
-      Table: s.tableId?.tableNumber || "N/A",
+      Table: s.tableNumber ?? "N/A",
+      "Order No": s.orderNumber || "—",
       Orders: s.orderCount || 0,
       Subtotal: s.subtotal || 0,
       GST: s.gst || 0,
@@ -185,7 +310,10 @@ export const SalesHistoryClient: React.FC = () => {
         {datePresets.map((p) => (
           <button
             key={p.value}
-            onClick={() => setDateRange(p.value)}
+            onClick={() => {
+              requestReload();
+              setDateRange(p.value);
+            }}
             className={`px-md py-sm rounded-full text-body-sm font-inter font-semibold whitespace-nowrap cursor-pointer transition-colors ${
               dateRange === p.value
                 ? "bg-primary text-on-primary"
@@ -268,13 +396,13 @@ export const SalesHistoryClient: React.FC = () => {
             color: "text-secondary",
           },
           {
-            label: "Sessions",
+            label: "Sales",
             value: String(summary.sessionCount),
             icon: "groups",
             color: "text-primary",
           },
           {
-            label: "Avg Order Value",
+            label: "Avg Sale Value",
             value: formatCurrency(summary.averageOrderValue),
             icon: "trending_up",
             color: "text-secondary",
@@ -317,7 +445,7 @@ export const SalesHistoryClient: React.FC = () => {
           <p className="font-inter text-body-sm text-on-surface-variant">
             {customerSearch || paymentFilter !== "all"
               ? "Try adjusting your filters."
-              : "Completed sessions will appear here."}
+              : "Paid table sessions and counter sales will appear here."}
           </p>
         </div>
       ) : (
@@ -335,24 +463,28 @@ export const SalesHistoryClient: React.FC = () => {
             </div>
 
             {/* Rows */}
-            {filteredSessions.map((s: any) => (
+            {filteredSessions.map((s) => (
               <div
-                key={s.id || s._id}
+                key={s.id}
                 className="grid grid-cols-1 md:grid-cols-[1fr_1fr_0.8fr_0.5fr_0.8fr_0.7fr_0.8fr] gap-sm px-md py-sm border-b border-surface-container last:border-b-0 hover:bg-surface-container-low/50 transition-colors"
               >
                 <span className="font-inter text-body-sm text-on-surface">
-                  {formatDate(s.endedAt || s.startedAt)}
+                  {formatDate(s.date)}
                 </span>
                 <div className="min-w-0">
                   <p className="font-inter text-body-sm text-on-surface truncate">
                     {s.customerName}
                   </p>
                   <p className="font-inter text-label-sm text-on-surface-variant truncate md:hidden">
-                    {s.customerEmail}
+                    {s.orderNumber || s.customerEmail}
                   </p>
                 </div>
                 <span className="font-inter text-body-sm text-on-surface">
-                  Table {s.tableId?.tableNumber || "N/A"}
+                  {s.kind === "pos_order"
+                    ? s.tableNumber != null
+                      ? `Table ${s.tableNumber}`
+                      : "Counter"
+                    : `Table ${s.tableNumber ?? "N/A"}`}
                 </span>
                 <span className="font-inter text-body-sm text-on-surface">
                   {s.orderCount || 0}
@@ -374,7 +506,7 @@ export const SalesHistoryClient: React.FC = () => {
                     {getPaymentMethodLabel(s.paymentMethod)}
                   </span>
                 </div>
-                <div className="flex justify-end">
+                <div className="flex flex-col items-end gap-xs">
                   {s.invoice?.pdfUrl ? (
                     <a
                       href={`${API_URL.replace('/api', '')}${s.invoice.pdfUrl}`}
@@ -392,6 +524,18 @@ export const SalesHistoryClient: React.FC = () => {
                       —
                     </span>
                   )}
+                  {s.invoice && (
+                    <button
+                      onClick={() => handleResend(s)}
+                      disabled={resendBusyId === s.id}
+                      className="flex items-center gap-xs text-on-surface-variant font-inter font-semibold text-label-sm hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">
+                        {resendBusyId === s.id ? "hourglass_top" : "forward_to_inbox"}
+                      </span>
+                      {resendBusyId === s.id ? "Sending…" : "Resend invoice"}
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -401,7 +545,10 @@ export const SalesHistoryClient: React.FC = () => {
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-sm mt-md">
               <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                onClick={() => {
+                  requestReload();
+                  setPage((p) => Math.max(1, p - 1));
+                }}
                 disabled={page <= 1}
                 className="px-md py-sm rounded-lg bg-surface-container text-on-surface-variant font-inter text-body-sm cursor-pointer hover:bg-surface-container-high disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
@@ -411,7 +558,10 @@ export const SalesHistoryClient: React.FC = () => {
                 Page {page} of {totalPages}
               </span>
               <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                onClick={() => {
+                  requestReload();
+                  setPage((p) => Math.min(totalPages, p + 1));
+                }}
                 disabled={page >= totalPages}
                 className="px-md py-sm rounded-lg bg-surface-container text-on-surface-variant font-inter text-body-sm cursor-pointer hover:bg-surface-container-high disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
@@ -420,6 +570,71 @@ export const SalesHistoryClient: React.FC = () => {
             </div>
           )}
         </>
+      )}
+
+      {resendNotice && (
+        <div
+          role="status"
+          className={`mt-md rounded-xl px-md py-sm font-inter text-body-sm ${
+            resendNotice.tone === "success"
+              ? "bg-success-container text-on-success-container"
+              : "bg-error-container text-on-error-container"
+          }`}
+        >
+          {resendNotice.message}
+        </div>
+      )}
+
+      {/* Link an email so this invoice (and the next one) has somewhere to go */}
+      {emailPromptFor?.invoice && (
+        <Modal
+          isOpen={true}
+          onClose={() => setEmailPromptFor(null)}
+          title="Link email to send invoice"
+        >
+          <div className="flex flex-col gap-md">
+            <p className="text-body-md text-on-surface">
+              {emailPromptFor.customerName} has no email address on this bill,
+              so there is nowhere to send invoice{" "}
+              {emailPromptFor.invoice.invoiceNumber}.
+            </p>
+
+            <div className="flex flex-col gap-sm">
+              <label className="font-inter font-semibold text-label-md text-on-surface">
+                Email address
+              </label>
+              <input
+                type="email"
+                autoFocus
+                placeholder="guest@example.com"
+                value={emailInput}
+                onChange={(e) => setEmailInput(e.target.value)}
+                className="w-full h-12 bg-surface-container-low rounded-xl px-md font-inter text-body-md text-on-surface border-none focus:ring-2 focus:ring-primary outline-none transition-all"
+              />
+              <p className="text-body-sm text-on-surface-variant italic">
+                Saved to the customer&apos;s profile, so future invoices go
+                straight through.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-sm mt-sm">
+              <Button
+                variant="secondary"
+                onClick={() => setEmailPromptFor(null)}
+                disabled={resendBusyId !== null}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => handleResend(emailPromptFor, emailInput.trim())}
+                disabled={!emailInput.trim() || resendBusyId !== null}
+              >
+                {resendBusyId ? "Sending…" : "Link & send"}
+              </Button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );

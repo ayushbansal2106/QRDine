@@ -20,17 +20,33 @@ const periods = [
   { label: "90 Days", value: "90days" },
 ];
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+/**
+ * Passed as `content={<CustomTooltip />}`, so Recharts clones the element and
+ * injects the tooltip props — the component is declared with the subset it
+ * reads, which is why `TooltipContentProps` (whose other fields are always
+ * supplied at runtime) would not typecheck as a direct element.
+ */
+interface RevenueTooltipProps {
+  active?: boolean;
+  payload?: ReadonlyArray<{ value?: number | string; payload?: unknown }>;
+  label?: string | number;
+}
+
+const CustomTooltip = ({ active, payload, label }: RevenueTooltipProps) => {
   if (!active || !payload?.length) return null;
+  const first = payload[0];
+  // `payload[0].payload` is the row the chart is hovering, so it carries the
+  // `orders` count alongside the plotted revenue.
+  const row = first?.payload as { orders?: number } | undefined;
   return (
     <div className="bg-surface-container-lowest rounded-lg shadow-lg border border-surface-container p-sm font-inter">
       <p className="text-label-sm text-on-surface-variant mb-xs">{label}</p>
       <p className="text-body-md font-bold text-on-surface">
-        {formatCurrency(payload[0].value)}
+        {formatCurrency(Number(first?.value ?? 0))}
       </p>
-      {payload[0].payload.orders > 0 && (
+      {Number(row?.orders ?? 0) > 0 && (
         <p className="text-label-sm text-on-surface-variant">
-          {payload[0].payload.orders} orders
+          {Number(row?.orders)} orders
         </p>
       )}
     </div>
@@ -112,7 +128,7 @@ export const RevenueChart: React.FC = () => {
           <div className="flex items-center gap-xs">
             <p
               className={`font-inter font-bold text-headline-sm ${
-                isGrowthPositive ? "text-[#2e7d32]" : "text-[#c62828]"
+                isGrowthPositive ? "text-success" : "text-on-error-container"
               }`}
             >
               {isLoading
@@ -122,7 +138,7 @@ export const RevenueChart: React.FC = () => {
             {!isLoading && (
               <span
                 className={`material-symbols-outlined text-[20px] ${
-                  isGrowthPositive ? "text-[#2e7d32]" : "text-[#c62828]"
+                  isGrowthPositive ? "text-success" : "text-on-error-container"
                 }`}
               >
                 {isGrowthPositive ? "trending_up" : "trending_down"}

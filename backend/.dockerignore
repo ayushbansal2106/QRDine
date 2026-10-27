@@ -1,0 +1,46 @@
+# Keep the build context small and, more importantly, keep secrets and local
+# state out of the image. A stray `COPY . .` in a future Dockerfile must not be
+# able to pick up a real .env or a customer's phone numbers.
+
+# Secrets and local config
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Dependencies (rebuilt inside the image via npm ci)
+node_modules
+
+# Test and coverage artefacts
+coverage
+.nyc_output
+*.test.js
+__tests__
+
+# Operational data — never bake a backup or a restored database into an image
+backups
+backups-*
+*.bson.json
+manifest.json
+
+# Uploads are user content and live on a mounted volume, not in the image
+uploads
+
+# Local scratch
+.verify
+*.log
+.tmp
+tmp
+
+# Version control and editor noise
+.git
+.gitignore
+.vscode
+.idea
+.DS_Store
+
+# Docs and compose files are not needed at runtime
+docs
+*.md
+docker-compose*.yml

@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const AppError = require('../utils/AppError');
 const asyncHandler = require('../utils/asyncHandler');
-const generateQRCode = require('../utils/generateQRCode');
+const qrService = require('../services/qrService');
 const Table = require('../models/Table');
 
 const isValidObjectId = (value) => mongoose.Types.ObjectId.isValid(value);
@@ -38,10 +38,7 @@ const validateTablePayload = ({ tableNumber, isActive }) => {
   return errors;
 };
 
-const buildGuestUrl = (publicId) => {
-  const frontendUrl = process.env.FRONTEND_PUBLIC_URL || 'http://localhost:3000';
-  return `${frontendUrl}/table/${publicId}`;
-};
+const buildGuestUrl = (publicId) => qrService.buildTableGuestUrl(publicId);
 
 const getTables = asyncHandler(async (req, res) => {
   const { page, limit, skip } = resolvePagination(req.query.page, req.query.limit);
@@ -89,8 +86,7 @@ const createTable = asyncHandler(async (req, res) => {
     throw new AppError('Table number already exists for this cafe', 409);
   }
 
-  const crypto = require('crypto');
-  const publicId = 'tbl_' + crypto.randomBytes(12).toString('hex');
+  const publicId = qrService.generateTablePublicId();
 
   const table = await Table.create({
     cafeId: req.cafeId,
@@ -196,7 +192,10 @@ const getTableQr = asyncHandler(async (req, res) => {
     throw new AppError('Table not found', 404);
   }
 
-  const { qrDataUrl } = await generateQRCode(table.guestUrl);
+  await qrService.ensureTableIdentity(table);
+
+  // generateQrDataUrl resolves to the data URL string itself, so destructure nothing.
+  const qrDataUrl = await qrService.generateQrDataUrl(table.guestUrl);
 
   res.status(200).json({
     tableId: table._id,

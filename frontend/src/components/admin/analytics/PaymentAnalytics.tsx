@@ -17,15 +17,31 @@ const COLORS = {
   counter: "#e65100",
 };
 
-const CustomPieTooltip = ({ active, payload }: any) => {
+/**
+ * Passed as `content={<CustomPieTooltip />}`, so Recharts clones the element and
+ * injects the tooltip props; the component declares the subset it reads.
+ */
+interface PieTooltipProps {
+  active?: boolean;
+  payload?: ReadonlyArray<{
+    name?: string | number;
+    value?: number | string;
+    payload?: unknown;
+  }>;
+}
+
+const CustomPieTooltip = ({ active, payload }: PieTooltipProps) => {
   if (!active || !payload?.length) return null;
+  const first = payload[0];
+  // The slice's own row carries `percent`, already computed server-side.
+  const row = first?.payload as { percent?: number } | undefined;
   return (
     <div className="bg-surface-container-lowest rounded-lg shadow-lg border border-surface-container p-sm font-inter">
       <p className="text-body-sm font-semibold text-on-surface">
-        {payload[0].name}
+        {first?.name}
       </p>
       <p className="text-label-sm text-on-surface-variant">
-        {payload[0].value} payments ({payload[0].payload.percent}%)
+        {Number(first?.value ?? 0)} payments ({Number(row?.percent ?? 0)}%)
       </p>
     </div>
   );

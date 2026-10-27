@@ -37,6 +37,14 @@ Thumbs.db
 # Other
 frontend/designs/
 backend/uploads/
+
+# Database backups — these contain customer PII and must never be committed.
+# The e2e/drill variants are covered too: they write real documents (phone
+# numbers included) during a test run.
+backend/backups/
+backend/backups-e2e/
+backend/backups-test/
+
 *.log
 .env.local
 .env.development.local

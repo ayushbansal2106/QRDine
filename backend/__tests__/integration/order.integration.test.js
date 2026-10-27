@@ -258,10 +258,10 @@ describe('PUT /api/orders/:id/status (updateOrderStatus)', () => {
 // Get Public Order (Guest tracking)
 // ═══════════════════════════════════════════════════════════════════
 describe('GET /api/orders/public/:id (getPublicOrder)', () => {
-  let orderId;
+  let orderId, session;
 
   beforeEach(async () => {
-    const session = await seedSession(cafeId, tableId);
+    session = await seedSession(cafeId, tableId);
     const res = await request(app)
       .post('/api/orders')
       .set('x-guest-token', session.guestToken)
@@ -270,8 +270,11 @@ describe('GET /api/orders/public/:id (getPublicOrder)', () => {
     orderId = res.body.orderId;
   });
 
-  it('should return public order details', async () => {
-    const res = await request(app).get(`/api/orders/public/${orderId}`).expect(200);
+  it('should return public order details when authorized with valid guest token', async () => {
+    const res = await request(app)
+      .get(`/api/orders/public/${orderId}`)
+      .set('x-guest-token', session.guestToken)
+      .expect(200);
 
     expect(res.body.order).toHaveProperty('orderNumber');
     expect(res.body.order).toHaveProperty('status');
@@ -282,9 +285,16 @@ describe('GET /api/orders/public/:id (getPublicOrder)', () => {
     expect(res.body.order).not.toHaveProperty('cafeId');
   });
 
+  it('should return 404 when requested without a matching guest or customer token (SEC-003)', async () => {
+    await request(app).get(`/api/orders/public/${orderId}`).expect(404);
+  });
+
   it('should return 404 for nonexistent order', async () => {
     const fakeId = new mongoose.Types.ObjectId();
-    await request(app).get(`/api/orders/public/${fakeId}`).expect(404);
+    await request(app)
+      .get(`/api/orders/public/${fakeId}`)
+      .set('x-guest-token', session.guestToken)
+      .expect(404);
   });
 });
 

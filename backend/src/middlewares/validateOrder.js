@@ -31,6 +31,8 @@ const validateOrderPayload = (req, res, next) => {
         const qty = Number(item.quantity);
         if (!Number.isInteger(qty) || qty <= 0) {
           errors.push(`Item at index ${index} quantity must be a positive integer`);
+        } else if (qty > 50) {
+          errors.push(`Item at index ${index} quantity cannot exceed 50`);
         }
       }
     });

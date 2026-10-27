@@ -1,14 +1,21 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Order, OrderStatus } from "@/types";
+import { Order } from "@/types";
 import { TopAppBar } from "@/components/layout/TopAppBar";
 import { OrderStatusTracker } from "@/components/order/OrderStatusTracker";
 import { useSocketStore } from "@/store/socketStore";
 import { Button } from "@/components/common/Button";
+import { formatTime } from "@/lib/format";
 import Link from "next/link";
 import { getPublicOrderAction, getPublicOrderStatusAction } from "@/actions/orders";
 import { formatCurrency } from "@/utils/currency";
+import { FssaiDisclaimer } from "@/components/common/FssaiDisclaimer";
+import {
+  asIdPayload,
+  asOrderStatusPayload,
+  mapRawOrder,
+} from "@/lib/mappers";
 
 interface OrderTrackingClientProps {
   initialOrder: Order;
@@ -34,18 +41,23 @@ export const OrderTrackingClient: React.FC<OrderTrackingClientProps> = ({
   useEffect(() => {
     if (!socket) return;
 
-    const handleStatusUpdate = (payload: any) => {
-      const receivedOrderId = payload?.orderId || payload?.id;
+    const handleStatusUpdate = (payload: unknown) => {
+      // Untrusted socket input: the tracking room emits `{ orderId }` on
+      // `status-updated` and a bare `{ id }` elsewhere, so both are read
+      // defensively rather than trusted to be one shape.
+      const receivedOrderId = asOrderStatusPayload(payload)?.orderId ?? asIdPayload(payload)?.id;
       if (receivedOrderId === order.id) {
         console.log("Live websocket order update received:", payload);
         // Refresh full order details to ensure items/totals sync
         getPublicOrderAction(order.id)
           .then((res) => {
             if (res.success && res.order) {
-              setOrder(res.order);
+              setOrder(mapRawOrder(res.order));
             }
           })
-          .catch((err) => console.error("Websocket sync details fetch failed:", err));
+          .catch((err: unknown) =>
+            console.error("Websocket sync details fetch failed:", err)
+          );
       }
     };
 
@@ -70,10 +82,10 @@ export const OrderTrackingClient: React.FC<OrderTrackingClientProps> = ({
           console.log(`Polling status updated: ${order.status} -> ${res.status}. Loading details...`);
           const detailRes = await getPublicOrderAction(order.id);
           if (detailRes.success && detailRes.order) {
-            setOrder(detailRes.order);
+            setOrder(mapRawOrder(detailRes.order));
           }
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.error("Failed to poll order status:", err);
       }
     }, 15000);
@@ -84,7 +96,6 @@ export const OrderTrackingClient: React.FC<OrderTrackingClientProps> = ({
   }, [order.id, order.status, isConnected]);
 
   const subtotal = order.subtotal || 0;
-  const totalGST = order.totalGST || 0;
   const serviceCharge = order.serviceCharge || 0;
   const total = order.totalAmount || 0;
   const taxBreakdown = order.taxBreakdown || [];
@@ -113,7 +124,7 @@ export const OrderTrackingClient: React.FC<OrderTrackingClientProps> = ({
               </span>
             </div>
             <p className="font-inter text-body-sm text-on-surface-variant">
-              Placed on {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              Placed on {formatTime(order.createdAt)}
             </p>
           </div>
 
@@ -125,7 +136,7 @@ export const OrderTrackingClient: React.FC<OrderTrackingClientProps> = ({
           {/* Pricing Recap */}
           <div className="bg-surface-container-lowest rounded-xl p-md shadow-[0px_4px_20px_rgba(0,0,0,0.04)] flex flex-col gap-xs mb-lg font-inter border border-surface-container">
             <span className="text-[11px] font-semibold text-on-surface-variant/80 uppercase tracking-wider mb-1">Ordered Items</span>
-            {order.items?.map((item: any, idx: number) => (
+            {order.items?.map((item, idx) => (
               <div key={idx} className="flex justify-between text-body-sm text-on-surface-variant">
                 <span>{item.name} <span className="text-on-surface-variant/60 font-semibold">x{item.quantity}</span></span>
                 <span>{formatCurrency(Number(item.price) * item.quantity)}</span>
@@ -136,7 +147,7 @@ export const OrderTrackingClient: React.FC<OrderTrackingClientProps> = ({
               <span>Subtotal</span>
               <span>{formatCurrency(subtotal)}</span>
             </div>
-            {taxBreakdown.map((tax: any, idx: number) => (
+            {taxBreakdown.map((tax, idx) => (
               <div key={idx} className="flex justify-between text-body-sm text-on-surface-variant">
                 <span>GST ({tax.percentage}%)</span>
                 <span>{formatCurrency(tax.amount)}</span>
@@ -154,6 +165,9 @@ export const OrderTrackingClient: React.FC<OrderTrackingClientProps> = ({
             </div>
           </div>
         </div>
+
+        {/* FSSAI Intermediary Disclaimer */}
+        <FssaiDisclaimer compact />
 
         {/* Back Actions */}
         <Link href={`/table/${order.table?.tableNumber || ""}`} passHref className="w-full">

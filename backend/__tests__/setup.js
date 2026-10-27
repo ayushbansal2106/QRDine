@@ -23,6 +23,9 @@ function mockRes() {
     json: jest.fn().mockReturnThis(),
     cookie: jest.fn().mockReturnThis(),
     send: jest.fn().mockReturnThis(),
+    setHeader: jest.fn().mockReturnThis(),
+    headers: {},
+    locals: {},
     _statusCode: null,
     _jsonData: null,
   };
@@ -34,6 +37,10 @@ function mockRes() {
   });
   res.json.mockImplementation((data) => {
     res._jsonData = data;
+    return res;
+  });
+  res.setHeader.mockImplementation((key, value) => {
+    res.headers[key] = value;
     return res;
   });
 

@@ -223,6 +223,38 @@ describe('Session — createSession', () => {
     }));
   });
 
+  it('should open a table for a guest who gives no email', async () => {
+    // Email is optional since Module #09 — a guest signs in by phone OTP and may
+    // attach an email later. Every test above supplies one, which hid a real
+    // crash: the session was built with `customerEmail: (customerEmail || '')`
+    // but the participant's email was `customerEmail.trim()`, so a guest who
+    // skipped the field got a 500 and no table at all.
+    const req = mockReq({ body: { tableId: 'table-123', customerName: 'Bob' } });
+    const res = mockRes();
+    const next = mockNext();
+
+    mockTableFindById.mockResolvedValue({ _id: 'table-123', cafeId: 'cafe-123', isActive: true });
+    mockDiningSessionFindOne.mockResolvedValue(null);
+    mockDiningSessionCreate.mockResolvedValue({
+      _id: 'session-123',
+      cafeId: 'cafe-123',
+      tableId: 'table-123',
+      customerName: 'Bob',
+      customerEmail: '',
+      guestToken: 'mock-token-value',
+      status: 'active',
+      startedAt: new Date(),
+    });
+
+    await createSession(req, res, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(201);
+    // The participant must be recorded with a safe value, not a crash.
+    const created = mockDiningSessionCreate.mock.calls[0][0];
+    expect(created.participants[0].email).toBe('');
+  });
+
   it('should return 400 if required fields are missing', async () => {
     const req = mockReq({ body: { tableId: 'table-123' } }); // missing customerName, customerEmail
     const res = mockRes();

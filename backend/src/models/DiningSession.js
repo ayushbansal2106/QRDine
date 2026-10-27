@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const mongoose = require('mongoose');
 
 const diningSessionSchema = new mongoose.Schema(
@@ -34,10 +35,7 @@ const diningSessionSchema = new mongoose.Schema(
     ],
     guestToken: {
       type: String,
-      default: () => {
-        const crypto = require('crypto');
-        return crypto.randomBytes(16).toString('hex');
-      },
+      default: () => crypto.randomBytes(16).toString('hex'),
       required: true,
     },
     deviceId: {
@@ -134,8 +132,17 @@ const diningSessionSchema = new mongoose.Schema(
 );
 
 diningSessionSchema.index({ cafeId: 1, status: 1 });
+diningSessionSchema.index({ tableId: 1, status: 1 });
 diningSessionSchema.index({ cafeId: 1, tableId: 1, status: 1 });
 diningSessionSchema.index({ cafeId: 1, createdAt: -1 });
+diningSessionSchema.index({ guestToken: 1 });
+
+diningSessionSchema.pre('save', function (next) {
+  if (this.activityFeed && this.activityFeed.length > 50) {
+    this.activityFeed = this.activityFeed.slice(-50);
+  }
+  if (typeof next === 'function') next();
+});
 
 diningSessionSchema.methods.addActivity = function(type, message) {
   this.activityFeed.push({ type, message });

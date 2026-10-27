@@ -12,6 +12,23 @@ const bcrypt = require('bcryptjs');
 
 let mongoServer;
 
+// ─── Safety Guard ────────────────────────────────────────────────
+/**
+ * These helpers call `dropDatabase()` and `deleteMany({})` with no filter.
+ * They are only ever safe against a throwaway in-memory server, so refuse to
+ * run against anything else rather than trust that `connect()` ran first.
+ */
+const assertDisposableHost = () => {
+  const host = mongoose.connection.host || '';
+  const isLocal = host === '127.0.0.1' || host === 'localhost' || host === '::1' || host === '[::1]';
+  if (!isLocal) {
+    throw new Error(
+      `REFUSING TO RUN: tests would drop the database at "${mongoose.connection.name}" on host "${host}", ` +
+        'which is not a local in-memory server. This would destroy real data.'
+    );
+  }
+};
+
 // ─── Database Lifecycle ──────────────────────────────────────────
 
 const connect = async () => {
@@ -22,6 +39,7 @@ const connect = async () => {
 
 const closeDatabase = async () => {
   if (mongoose.connection.readyState !== 0) {
+    assertDisposableHost();
     await mongoose.connection.dropDatabase();
     await mongoose.connection.close();
   }
@@ -32,6 +50,7 @@ const closeDatabase = async () => {
 
 const clearDatabase = async () => {
   if (mongoose.connection.readyState !== 1) return;
+  assertDisposableHost();
 
   const collections = mongoose.connection.collections;
   for (const key in collections) {

@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Modal } from "./common/Modal";
 import { Button } from "./common/Button";
 import { createWaiterRequest } from "@/actions/requests";
 import { useSessionStore } from "@/store/sessionStore";
+import { useSessionGate } from "@/components/menu/SessionGate";
 
 interface WaiterAssistanceModalProps {
   isOpen: boolean;
@@ -17,10 +18,43 @@ export const WaiterAssistanceModal: React.FC<WaiterAssistanceModalProps> = ({
   onClose,
   tableId,
 }) => {
-  const { activeSessionId, setSessionStatus } = useSessionStore();
+  const { activeSessionId } = useSessionStore();
+  const { ensureSession } = useSessionGate();
   const [requestType, setRequestType] = useState("Need Waiter");
   const [customMsg, setCustomMsg] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  // A waiter request acts for the table, so it needs a dining session. The
+  // menu is browsable without one, so the gate is only raised if the guest taps
+  // a control that genuinely cannot work without an identity.
+  const [sessionBlocked, setSessionBlocked] = useState(false);
+
+  // Derived rather than stored: the gate is pending exactly while the sheet is
+  // open, no session exists and nothing has failed yet.
+  const isCheckingSession = isOpen && !activeSessionId && !sessionBlocked;
+
+  useEffect(() => {
+    if (!isOpen || activeSessionId) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const session = await ensureSession();
+        if (!cancelled) setSessionBlocked(!session);
+      } catch {
+        if (!cancelled) setSessionBlocked(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, activeSessionId, ensureSession]);
+
+  // Clearing on close lets the guest retry without leaving a dead sheet behind.
+  const handleClose = () => {
+    setSessionBlocked(false);
+    onClose();
+  };
 
   const presets = ["Need Waiter", "Need Water", "Clean Table"];
 
@@ -31,7 +65,7 @@ export const WaiterAssistanceModal: React.FC<WaiterAssistanceModalProps> = ({
       await createWaiterRequest(tableId, finalMsg);
       alert("Assistance requested. A staff member will be with you shortly!");
       setCustomMsg("");
-      onClose();
+      handleClose();
     } catch (err) {
       console.error(err);
       alert("Failed to submit request. Please try again.");
@@ -41,8 +75,20 @@ export const WaiterAssistanceModal: React.FC<WaiterAssistanceModalProps> = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Request Assistance">
+    <Modal isOpen={isOpen} onClose={handleClose} title="Request Assistance">
       <div className="flex flex-col gap-md">
+        {isCheckingSession && (
+          <p className="font-inter text-body-md text-on-surface-variant">
+            Getting your table ready…
+          </p>
+        )}
+
+        {sessionBlocked && (
+          <div className="rounded-xl bg-warning-container px-md py-sm text-body-sm text-on-warning-container">
+            We could not start a session for this table. Please ask a staff member for
+            help.
+          </div>
+        )}
         <div>
           <span className="font-inter font-semibold text-label-md text-on-surface mb-xs block">
             Select Request Type

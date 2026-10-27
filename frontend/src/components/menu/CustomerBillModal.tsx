@@ -1,12 +1,14 @@
 "use client";
+import { thrownMessage } from "@/lib/errorMessage";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Modal } from "@/components/common/Modal";
 import { Button } from "@/components/common/Button";
 import { getBillPreview, submitPaymentPreference } from "@/actions/sessions";
 import { useSessionStore } from "@/store/sessionStore";
 import { useSocketStore } from "@/store/socketStore";
 import { formatCurrency } from "@/utils/currency";
+import type { BillPreview } from "@/actions/sessions";
 
 interface CustomerBillModalProps {
   isOpen: boolean;
@@ -17,42 +19,80 @@ export const CustomerBillModal: React.FC<CustomerBillModalProps> = ({
   isOpen,
   onClose,
 }) => {
-  const { activeSessionId, sessionStatus, setSessionStatus, role } = useSessionStore();
+  const { activeSessionId, sessionStatus, setSessionStatus, role, participantId } =
+    useSessionStore();
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [billData, setBillData] = useState<{
-    subtotal: number;
-    gst: number;
-    totalAmount: number;
-    orderCount: number;
-    additions?: number;
-    discounts?: number;
-    adjustments?: any[];
-    items?: { name: string; quantity: number; price: number }[];
-  } | null>(null);
+  const [billData, setBillData] = useState<BillPreview | null>(null);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
 
-  const { socket, connect, joinRoom } = useSocketStore();
+  // The socket is already connected and joined to `session-{id}` by
+  // `SessionGate`, so the modal only needs the live socket — not its own
+  // connection or room membership. `bill-updated` is emitted to both the cafe
+  // room (staff) and the session room (this table).
+  const { socket } = useSocketStore();
 
-  useEffect(() => {
-    if (isOpen && activeSessionId) {
-      fetchBillPreview();
-      // Ensure we are connected to the cafe's room to receive events
-      // Since cafeId isn't directly available here, we rely on TableMenuClient's existing connection.
-      // We just need to listen to socket events.
+  /**
+   * Fetch the bill summary for a session.
+   *
+   * Returns the preview rather than writing it, and raises no "start" flag.
+   * `isLoading` is seeded `true` for the modal's first fetch; raising it again
+   * on every later refresh made the modal collapse to a spinner each time an
+   * adjustment was raised at the counter — including on the `bill-updated`
+   * ping that the guest is currently reading.
+   */
+  const fetchBillPreview = useCallback(async (sessionId: string) => {
+    try {
+      const result = await getBillPreview(sessionId);
+      return result.success ? result.bill : null;
+    } catch (err: unknown) {
+      setError(thrownMessage(err, "Failed to load bill summary."));
+      return null;
     }
-  }, [isOpen, activeSessionId]);
+  }, []);
+
+  /** Commit a fetch. Split out so the open-effect can skip the write when the
+   *  guest closed the modal before the request resolved. */
+  const applyBillPreview = useCallback((bill: BillPreview | null) => {
+    if (bill) setBillData(bill);
+    setIsLoading(false);
+  }, []);
+
+  /** Refresh after the counter changed something. Keeps the figures on screen
+   *  while the new total loads, so the guest sees the line move rather than a
+   *  spinner. */
+  const refreshBillPreview = useCallback(
+    async (sessionId: string) => {
+      const bill = await fetchBillPreview(sessionId);
+      if (bill) setBillData(bill);
+    },
+    [fetchBillPreview]
+  );
 
   useEffect(() => {
-    if (!socket || !isOpen) return;
+    if (!isOpen || !activeSessionId) return;
+    let cancelled = false;
+    const run = async () => {
+      const bill = await fetchBillPreview(activeSessionId);
+      if (cancelled) return;
+      applyBillPreview(bill);
+    };
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, activeSessionId, applyBillPreview, fetchBillPreview]);
 
-    const handleBillUpdated = (data: any) => {
+  useEffect(() => {
+    if (!socket || !isOpen || !activeSessionId) return;
+
+    const handleBillUpdated = (data: { sessionId?: string; message?: string }) => {
       if (data.sessionId === activeSessionId) {
         if (data.message) {
           alert(`Notice: ${data.message}`);
         }
-        fetchBillPreview();
+        void refreshBillPreview(activeSessionId);
       }
     };
 
@@ -61,23 +101,7 @@ export const CustomerBillModal: React.FC<CustomerBillModalProps> = ({
     return () => {
       socket.off("bill-updated", handleBillUpdated);
     };
-  }, [socket, isOpen, activeSessionId]);
-
-  const fetchBillPreview = async () => {
-    if (!activeSessionId) return;
-    setIsLoading(true);
-    setError("");
-    try {
-      const result = await getBillPreview(activeSessionId);
-      if (result.success && result.bill) {
-        setBillData(result.bill);
-      }
-    } catch (err: any) {
-      setError(err.message || "Failed to load bill summary.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [socket, isOpen, activeSessionId, refreshBillPreview]);
 
   const handlePaymentSelection = async (method: "paid_counter" | "paid_online") => {
     if (!activeSessionId) return;
@@ -90,13 +114,13 @@ export const CustomerBillModal: React.FC<CustomerBillModalProps> = ({
     setIsSubmitting(true);
     setError("");
     try {
-      const result = await submitPaymentPreference(activeSessionId, method);
+      const result = await submitPaymentPreference(activeSessionId, method, participantId);
       if (result.success) {
         setSessionStatus("awaiting_payment");
         setSuccessMsg("Staff has been notified. Please proceed to the counter or await confirmation.");
       }
-    } catch (err: any) {
-      setError(err.message || "Failed to submit payment preference.");
+    } catch (err: unknown) {
+      setError(thrownMessage(err, "Failed to submit payment preference."));
     } finally {
       setIsSubmitting(false);
     }
@@ -172,14 +196,14 @@ export const CustomerBillModal: React.FC<CustomerBillModalProps> = ({
               {(billData.additions || 0) > 0 && (
                 <div className="flex items-center justify-between mb-xs text-body-md font-inter text-primary">
                   <span>Additions</span>
-                  <span>+{formatCurrency(billData.additions!)}</span>
+                  <span>+{formatCurrency(billData.additions ?? 0)}</span>
                 </div>
               )}
               
               {(billData.discounts || 0) > 0 && (
                 <div className="flex items-center justify-between mb-xs text-body-md font-inter text-error">
                   <span>Discounts</span>
-                  <span>-{formatCurrency(billData.discounts!)}</span>
+                  <span>-{formatCurrency(billData.discounts ?? 0)}</span>
                 </div>
               )}
 
@@ -197,7 +221,7 @@ export const CustomerBillModal: React.FC<CustomerBillModalProps> = ({
             </div>
 
             {successMsg || isAwaiting ? (
-              <div className="bg-[#E65100]/10 text-[#E65100] p-md rounded-xl text-center font-inter text-body-md mt-sm">
+              <div className="bg-warning/10 text-warning p-md rounded-xl text-center font-inter text-body-md mt-sm">
                 <span className="material-symbols-outlined text-[32px] mb-xs block mx-auto">
                   hourglass_empty
                 </span>

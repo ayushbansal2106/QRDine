@@ -14,15 +14,33 @@ const periods = [
 
 const CHART_COLORS = ["#51604f", "#8a9f87"];
 
-const CustomPieTooltip = ({ active, payload }: any) => {
+/**
+ * Passed as `content={<CustomPieTooltip />}`, so Recharts clones the element and
+ * injects the tooltip props; the component declares the subset it reads.
+ */
+interface PieTooltipProps {
+  active?: boolean;
+  payload?: ReadonlyArray<{
+    name?: string | number;
+    value?: number | string;
+    payload?: unknown;
+  }>;
+}
+
+const CustomPieTooltip = ({ active, payload }: PieTooltipProps) => {
   if (!active || !payload?.length) return null;
+  const first = payload[0];
+  const value = Number(first?.value ?? 0);
+  // The slice's own row carries `total`, which is the denominator for the
+  // share-of-total line below.
+  const row = first?.payload as { total?: number } | undefined;
   return (
     <div className="bg-surface-container-lowest rounded-lg shadow-lg border border-surface-container p-sm font-inter">
       <p className="text-body-sm font-semibold text-on-surface">
-        {payload[0].name}: {payload[0].value}
+        {first?.name}: {value}
       </p>
       <p className="text-label-sm text-on-surface-variant">
-        {((payload[0].value / (payload[0].payload.total || 1)) * 100).toFixed(1)}%
+        {((value / (Number(row?.total ?? 0) || 1)) * 100).toFixed(1)}%
       </p>
     </div>
   );
@@ -219,7 +237,7 @@ export const CustomerAnalytics: React.FC = () => {
           </div>
         ) : data?.topCustomers && data.topCustomers.length > 0 ? (
           <div className="space-y-xs">
-            {data.topCustomers.map((customer: TopCustomer, idx: number) => (
+            {data.topCustomers.map((customer: TopCustomer) => (
               <div
                 key={customer.email}
                 className="flex items-center gap-sm py-sm px-xs rounded-lg hover:bg-surface-container-low/50 transition-colors"
@@ -238,7 +256,7 @@ export const CustomerAnalytics: React.FC = () => {
                       {customer.name}
                     </p>
                     {customer.isReturning && (
-                      <span className="font-inter text-[10px] font-bold text-[#2e7d32] bg-[#e8f5e9] px-xs py-[1px] rounded-full">
+                      <span className="font-inter text-[10px] font-bold text-success bg-success-container px-xs py-[1px] rounded-full">
                         Returning
                       </span>
                     )}

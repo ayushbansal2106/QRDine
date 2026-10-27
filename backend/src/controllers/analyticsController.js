@@ -1,4 +1,5 @@
 const Order = require('../models/Order');
+const telemetryService = require('../services/telemetryService');
 const DiningSession = require('../models/DiningSession');
 const Table = require('../models/Table');
 const asyncHandler = require('../utils/asyncHandler');
@@ -339,7 +340,10 @@ const getItems = asyncHandler(async (req, res) => {
         itemMap[key].cancelledQuantity += item.quantity;
         const reason = item.cancellationReason || 'Unknown';
         itemMap[key].cancellationReasons[reason] = (itemMap[key].cancellationReasons[reason] || 0) + item.quantity;
-      } else if (order.status === 'served' || item.status === 'served') {
+      } else {
+        // Sold-item analytics, not a bill. Anything the guest actually ordered
+        // and did not withdraw counts, whatever the kitchen is doing to it —
+        // the old `served` gate under-reported every item still in progress.
         itemMap[key].quantity += item.quantity;
         itemMap[key].revenue += item.price * item.quantity;
       }
@@ -598,6 +602,39 @@ const getPayments = asyncHandler(async (req, res) => {
   });
 });
 
+// ─── 9. Live Operations Telemetry (Module #01) ──────────
+
+const getLiveTelemetry = asyncHandler(async (req, res) => {
+  const snapshot = await telemetryService.getLiveSnapshot(req.cafeId);
+  res.status(200).json({ success: true, telemetry: snapshot });
+});
+
+/** Peak-hours analytics (Module #01) — hourly velocity + day-of-week heatmap. */
+const getPeakHours = asyncHandler(async (req, res) => {
+  const result = await telemetryService.getPeakHours({ cafeId: req.cafeId, days: req.query.days });
+  res.status(200).json({ success: true, peakHours: result });
+});
+
+/** Table turnover (Module #01) — sessions per table, occupancy, avg dwell time. */
+const getTurnover = asyncHandler(async (req, res) => {
+  const result = await telemetryService.getTurnover({ cafeId: req.cafeId, days: req.query.days });
+  res.status(200).json({ success: true, turnover: result });
+});
+
+/**
+ * Outlet consolidation (Module #01). Cross-tenant aggregation is allowed only
+ * for outlets the caller owns or manages; `telemetryService` re-verifies that
+ * per outlet before returning anything.
+ */
+const getOutlets = asyncHandler(async (req, res) => {
+  const result = await telemetryService.getOutletConsolidation({
+    user: req.user,
+    cafeId: req.cafeId,
+    days: req.query.days,
+  });
+  res.status(200).json({ success: true, outlets: result });
+});
+
 module.exports = {
   getOverview,
   getRevenue,
@@ -607,4 +644,8 @@ module.exports = {
   getSessions,
   getCustomers,
   getPayments,
+  getLiveTelemetry,
+  getPeakHours,
+  getTurnover,
+  getOutlets,
 };

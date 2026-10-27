@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const DiningSession = require('../models/DiningSession');
 const Order = require('../models/Order');
 const Table = require('../models/Table');
@@ -5,6 +6,8 @@ const AppError = require('../utils/AppError');
 const asyncHandler = require('../utils/asyncHandler');
 const socketService = require('../services/socketService');
 const { executePaymentPipeline } = require('../services/paymentPipeline');
+const { closeSessionManually } = require('../services/sessionLifecycleService');
+const orderService = require('../services/orderService');
 const resolveGuestToken = require('../utils/resolveGuestToken');
 
 // ─── Public Endpoints (No Auth) ────────────────────────
@@ -13,8 +16,11 @@ const resolveGuestToken = require('../utils/resolveGuestToken');
 const createSession = asyncHandler(async (req, res, next) => {
   const { tableId, customerName, customerEmail, deviceId, forceNew } = req.body;
 
-  if (!tableId || !customerName || !customerEmail) {
-    return next(new AppError('tableId, customerName, and customerEmail are required', 400));
+  // Email is optional since Module #09: a guest signs in with a phone OTP and
+  // can attach a verified email later from their profile. Only the table and a
+  // display name are needed to open a table.
+  if (!tableId || !customerName) {
+    return next(new AppError('tableId and customerName are required', 400));
   }
 
   // Validate table
@@ -68,7 +74,6 @@ const createSession = asyncHandler(async (req, res, next) => {
     }
   }
 
-  const crypto = require('crypto');
   const participantId = crypto.randomBytes(8).toString('hex');
   const guestToken = crypto.randomBytes(16).toString('hex');
 
@@ -76,12 +81,12 @@ const createSession = asyncHandler(async (req, res, next) => {
     cafeId: table.cafeId,
     tableId: table._id,
     customerName: customerName.trim(),
-    customerEmail: customerEmail.trim().toLowerCase(),
+    customerEmail: (customerEmail || '').trim().toLowerCase(),
     guestToken,
     participants: [{
       participantId,
       name: customerName.trim(),
-      email: customerEmail.trim().toLowerCase(),
+      email: (customerEmail || '').trim().toLowerCase(),
       role: 'owner',
       deviceId: deviceId || null,
       status: 'active'
@@ -224,20 +229,18 @@ const getBillPreview = asyncHandler(async (req, res, next) => {
 
   for (const order of orders) {
     for (const item of order.items) {
-      if (item.status === 'served' || order.status === 'served') {
-        if (item.status !== 'cancelled') {
-          subtotal += item.price * item.quantity;
-          totalGST += item.gstAmount;
-          
-          if (itemsMap[item.menuItemId]) {
-            itemsMap[item.menuItemId].quantity += item.quantity;
-          } else {
-            itemsMap[item.menuItemId] = {
-              name: item.itemName,
-              quantity: item.quantity,
-              price: item.price,
-            };
-          }
+      if (orderService.isBillableItem(item)) {
+        subtotal += item.price * item.quantity;
+        totalGST += item.gstAmount;
+
+        if (itemsMap[item.menuItemId]) {
+          itemsMap[item.menuItemId].quantity += item.quantity;
+        } else {
+          itemsMap[item.menuItemId] = {
+            name: item.itemName,
+            quantity: item.quantity,
+            price: item.price,
+          };
         }
       }
     }
@@ -299,7 +302,31 @@ const submitPayment = asyncHandler(async (req, res, next) => {
   // Validate that the requestor is the owner
   const { participantId } = req.body;
   const participant = session.participants?.find(p => p.participantId === participantId);
-  if (!participant || participant.role !== 'owner') {
+  if (!participant) {
+    return next(new AppError('You are not a participant in this dining session', 403));
+  }
+
+  if (participant.status !== 'active') {
+    return next(new AppError('This participant has left the table', 403));
+  }
+
+  // An unhosted session has nobody who can legitimately pay, which would strand
+  // the table forever. Rather than dead-end, promote the requesting member to
+  // host — the same rule `joinSession` applies when a table is first claimed.
+  const hasActiveOwner = session.participants.some(
+    (p) => p.role === 'owner' && p.status === 'active' && p.participantId !== participantId
+  );
+
+  if (!hasActiveOwner) {
+    participant.role = 'owner';
+    session.customerName = participant.name;
+    session.addActivity('ownership_transferred', `${participant.name} became the table host`);
+    socketService.emitOwnershipTransferred(session._id, {
+      sessionId: session._id,
+      oldOwnerId: null,
+      newOwnerId: participant.participantId
+    });
+  } else if (participant.role !== 'owner') {
     return next(new AppError('Only the session owner can request the bill and choose a payment method', 403));
   }
 
@@ -313,17 +340,8 @@ const submitPayment = asyncHandler(async (req, res, next) => {
 
   // Get running total for the notification
   const orders = await Order.find({ sessionId: session._id, status: { $ne: 'cancelled' } });
-  let runningTotal = 0;
-  for (const order of orders) {
-    for (const item of order.items) {
-      if (item.status === 'served' || order.status === 'served') {
-        if (item.status !== 'cancelled') {
-          runningTotal += item.price * item.quantity;
-          runningTotal += item.gstAmount;
-        }
-      }
-    }
-  }
+  const billable = orderService.sumBillableItems(orders);
+  let runningTotal = billable.subtotal + billable.gst;
 
   let totalAdditions = 0;
   let totalDiscounts = 0;
@@ -371,12 +389,15 @@ const getSessions = asyncHandler(async (req, res, next) => {
     filter.status = status.toLowerCase();
   }
 
+  const parsedLimit = Math.min(Math.max(1, parseInt(limit, 10) || 20), 100);
+  const parsedPage = Math.max(1, parseInt(page, 10) || 1);
+
   if (tableNumber) {
     const table = await Table.findOne({ cafeId: req.cafeId, tableNumber });
     if (table) {
       filter.tableId = table._id;
     } else {
-      return res.status(200).json({ page: 1, limit: Number(limit), totalCount: 0, totalPages: 0, sessions: [] });
+      return res.status(200).json({ page: 1, limit: parsedLimit, totalCount: 0, totalPages: 0, sessions: [] });
     }
   }
 
@@ -386,39 +407,51 @@ const getSessions = asyncHandler(async (req, res, next) => {
     if (dateTo) filter.startedAt.$lte = new Date(dateTo);
   }
 
-  const skip = (Number(page) - 1) * Number(limit);
+  const skip = (parsedPage - 1) * parsedLimit;
 
   const [sessions, totalCount] = await Promise.all([
     DiningSession.find(filter)
       .sort({ createdAt: -1 })
       .populate('tableId', 'tableNumber')
       .skip(skip)
-      .limit(Number(limit)),
+      .limit(parsedLimit),
     DiningSession.countDocuments(filter),
   ]);
 
-  // For each session, get order count and running total
-  const enriched = await Promise.all(
-    sessions.map(async (s) => {
-      const orders = await Order.find({ sessionId: s._id, status: 'served' });
-      let runningTotal = 0;
-      for (const o of orders) {
-        runningTotal += (o.subtotal || 0) + (o.totalGST || 0);
-      }
-      return {
-        ...s.toObject(),
-        id: s._id,
-        orderCount: orders.length,
-        runningTotal: Number(runningTotal.toFixed(2)),
-      };
-    })
-  );
+  const sessionIds = sessions.map((s) => s._id);
+  const servedOrders = sessionIds.length > 0
+    ? await Order.find(
+        { sessionId: { $in: sessionIds }, status: 'served' },
+        'sessionId subtotal totalGST'
+      )
+    : [];
+
+  const statsMap = {};
+  for (const o of servedOrders) {
+    const sid = o.sessionId ? o.sessionId.toString() : null;
+    if (!sid) continue;
+    if (!statsMap[sid]) {
+      statsMap[sid] = { count: 0, total: 0 };
+    }
+    statsMap[sid].count += 1;
+    statsMap[sid].total += (o.subtotal || 0) + (o.totalGST || 0);
+  }
+
+  const enriched = sessions.map((s) => {
+    const stats = statsMap[s._id.toString()] || { count: 0, total: 0 };
+    return {
+      ...s.toObject(),
+      id: s._id,
+      orderCount: stats.count,
+      runningTotal: Number(stats.total.toFixed(2)),
+    };
+  });
 
   res.status(200).json({
-    page: Number(page),
-    limit: Number(limit),
+    page: parsedPage,
+    limit: parsedLimit,
     totalCount,
-    totalPages: Math.ceil(totalCount / Number(limit)),
+    totalPages: Math.ceil(totalCount / parsedLimit),
     sessions: enriched,
   });
 });
@@ -477,6 +510,36 @@ const markSessionPaid = asyncHandler(async (req, res, next) => {
   }
 });
 
+// 7b. Manual close (owner/manager) — a table cleared without settling the bill
+//
+// Paying a bill already closes the session, so this is the escape hatch for the
+// cases that payment cannot express: a walkout, a comped table, or a session
+// stranded by a crashed till. Unpaid orders block it unless the caller
+// explicitly writes them off.
+const closeSession = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { reason, writeOff } = req.body;
+
+  if (reason !== undefined && typeof reason !== 'string') {
+    throw new AppError('reason must be a string', 400);
+  }
+
+  const { session, writtenOffAmount } = await closeSessionManually({
+    sessionId: id,
+    cafeId: req.cafeId,
+    user: req.user,
+    reason: (reason || '').trim(),
+    writeOff: writeOff === true,
+  });
+
+  res.status(200).json({
+    success: true,
+    message: 'Session closed',
+    session,
+    writtenOffAmount,
+  });
+});
+
 // 8. Add Bill Adjustment (Admin)
 const addBillAdjustment = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
@@ -499,21 +562,11 @@ const addBillAdjustment = asyncHandler(async (req, res, next) => {
   }
 
   // Calculate current payable amount to prevent negative bills
-  const Order = require('../models/Order');
   const orders = await Order.find({ sessionId: session._id, status: { $ne: 'cancelled' } });
-  
-  let currentSubtotal = 0;
-  let currentGST = 0;
-  for (const order of orders) {
-    for (const item of order.items) {
-      if (item.status === 'served' || order.status === 'served') {
-        if (item.status !== 'cancelled') {
-          currentSubtotal += item.price * item.quantity;
-          currentGST += item.gstAmount;
-        }
-      }
-    }
-  }
+
+  const billable = orderService.sumBillableItems(orders);
+  const currentSubtotal = billable.subtotal;
+  const currentGST = billable.gst;
 
   let currentAdditions = 0;
   let currentDiscounts = 0;
@@ -586,19 +639,43 @@ const joinSession = asyncHandler(async (req, res, next) => {
   );
   
   if (!participant) {
-    const crypto = require('crypto');
     const participantId = crypto.randomBytes(8).toString('hex');
-    
+
+    // Host resolution: whoever first claims an unhosted table becomes its host.
+    //
+    // `createSession` (customer scanned first) always seeds an owner, but
+    // `createWaiterOrder` opens a session with NO participants at all. Without
+    // this promotion such a session can never gain an owner, so `submitPayment`
+    // rejects every caller with "Only the session owner can request the bill"
+    // and the table is permanently unable to settle. Promoting the first joiner
+    // also covers the case where the original host has left the table.
+    const hasActiveOwner = session.participants.some(
+      (p) => p.role === 'owner' && p.status === 'active'
+    );
+    const becomingOwner = !hasActiveOwner;
+
     participant = {
       participantId,
       name: name.trim(),
       email: null,
-      role: 'member',
+      role: becomingOwner ? 'owner' : 'member',
       deviceId: deviceId || null,
       status: 'active'
     };
     
     session.participants.push(participant);
+
+    if (becomingOwner) {
+      // Keep the session header in step with its new host so the bill and
+      // invoice are not attributed to a waiter-entered placeholder name.
+      session.customerName = participant.name;
+      session.addActivity('ownership_transferred', `${participant.name} became the table host`);
+      socketService.emitOwnershipTransferred(session._id, {
+        sessionId: session._id,
+        oldOwnerId: null,
+        newOwnerId: participant.participantId
+      });
+    }
     session.addActivity('participant_joined', `${participant.name} joined the table`);
     session.lastActivityAt = new Date();
     await session.save();
@@ -773,6 +850,92 @@ const getActivityFeed = asyncHandler(async (req, res, next) => {
   });
 });
 
+// 12b. Raise a table's bill from the counter (staff action)
+//
+// The guest walked up to the till and asked for the bill instead of tapping Bill
+// in the app, so their session is still `active` and the kitchen may still be
+// working. This moves it to the same `awaiting_payment` state the guest's own
+// button produces, so from that point the counter flow is identical — the board,
+// `mark-paid` and the pipeline all behave as they already do.
+//
+// Deliberately *not* gated on the food being served: a guest is entitled to pay
+// and leave, and refusing would only trap them at the table. Staff see the
+// unserved items on the bill detail before charging.
+const requestBillForTable = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+
+  const session = await DiningSession.findOne({ _id: id, cafeId: req.cafeId })
+    .populate('tableId', 'tableNumber');
+  if (!session) {
+    return next(new AppError('Session not found', 404));
+  }
+
+  // Idempotent rather than an error: the cashier may double-tap, and a table
+  // already waiting on payment is already in the state they asked for.
+  if (session.status === 'awaiting_payment') {
+    return res.status(200).json({
+      success: true,
+      alreadyRequested: true,
+      message: 'Bill was already raised for this table',
+      session,
+    });
+  }
+
+  // Anything else is genuinely wrong to bill. `closed`/`paid` is money already
+  // taken; `abandoned` is a table the cafe wrote off.
+  if (session.status !== 'active') {
+    return next(
+      new AppError(`Cannot raise a bill for a session with status "${session.status}"`, 400)
+    );
+  }
+
+  // Refuse a bill with nothing on it — that is a ₹0 "sale", which is exactly the
+  // kind of row that quietly corrupts revenue reporting.
+  const orders = await Order.find({ sessionId: session._id, status: { $ne: 'cancelled' } });
+  const { subtotal, gst } = orderService.sumBillableItems(orders);
+  let totalAdditions = 0;
+  let totalDiscounts = 0;
+  if (session.adjustments) {
+    for (const adj of session.adjustments) {
+      if (adj.type === 'addition') totalAdditions += adj.amount;
+      if (adj.type === 'discount') totalDiscounts += adj.amount;
+    }
+  }
+  const runningTotal = Math.max(0, subtotal + gst + totalAdditions - totalDiscounts);
+
+  if (runningTotal <= 0) {
+    return next(new AppError('This table has no billable orders yet', 400));
+  }
+
+  session.status = 'awaiting_payment';
+  // No payment method yet: the cashier has not taken money, and this field says
+  // *how* the guest intends to settle. `mark-paid` sets the real value.
+  session.paymentMethod = 'pending';
+  session.addActivity('bill_requested', `Bill raised at the counter${req.user ? ` by ${req.user.name}` : ''}`);
+  await session.save();
+
+  socketService.emitSessionActivity(session._id, {
+    type: 'bill_requested',
+    message: 'Bill raised at the counter — please proceed to the till',
+    timestamp: new Date(),
+  });
+  socketService.emitSessionBillRequested(session._id);
+  socketService.emitPaymentAwaiting(req.cafeId, {
+    sessionId: session._id,
+    tableId: session.tableId._id || session.tableId,
+    tableNumber: session.tableId?.tableNumber || 'N/A',
+    customerName: session.customerName,
+    orderCount: orders.length,
+    runningTotal: Number(runningTotal.toFixed(2)),
+  });
+
+  res.status(200).json({
+    success: true,
+    message: 'Bill raised. The guest has been asked to pay at the counter.',
+    session,
+  });
+});
+
 module.exports = {
   createSession,
   getActiveSessionForTable,
@@ -781,10 +944,12 @@ module.exports = {
   getSessions,
   getSessionDetails,
   markSessionPaid,
+  closeSession,
   addBillAdjustment,
   joinSession,
   leaveSession,
   transferOwnership,
   cancelBillRequest,
+  requestBillForTable,
   getActivityFeed,
 };

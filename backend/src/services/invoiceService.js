@@ -28,10 +28,39 @@ const generateInvoicePDF = async (session, orders, cafe, tableNumber) => {
     doc.pipe(writeStream);
 
     // ─── Header ────────────────────────────
+    const headerTitle = cafe.legalName || cafe.tradeName || cafe.name || 'QRDine Restaurant';
     doc
-      .fontSize(22)
+      .fontSize(20)
       .font('Helvetica-Bold')
-      .text(cafe.name || 'QRDine Restaurant', { align: 'center' });
+      .text(headerTitle, { align: 'center' });
+
+    if (cafe.legalName && cafe.tradeName && cafe.legalName !== cafe.tradeName) {
+      doc
+        .fontSize(10)
+        .font('Helvetica-Oblique')
+        .text(`(Trading as ${cafe.tradeName})`, { align: 'center' });
+    }
+
+    if (cafe.gstin) {
+      doc
+        .fontSize(9)
+        .font('Helvetica-Bold')
+        .text(`GSTIN: ${cafe.gstin}`, { align: 'center' });
+    }
+    if (cafe.fssaiNumber) {
+      doc
+        .fontSize(9)
+        .font('Helvetica')
+        .text(`FSSAI Lic. No: ${cafe.fssaiNumber}`, { align: 'center' });
+    }
+    if (cafe.taxMode === 'composite_5') {
+      doc
+        .fontSize(8)
+        .font('Helvetica-Oblique')
+        .fillColor('#555555')
+        .text('Composition Taxable Person, not eligible to collect tax on supplies', { align: 'center' })
+        .fillColor('#000000');
+    }
 
     if (cafe.address) {
       doc
@@ -228,13 +257,26 @@ const generateInvoicePDF = async (session, orders, cafe, tableNumber) => {
     doc.text(`Method: ${methodLabel}`);
 
     // ─── Footer ────────────────────────────
-    doc.moveDown(2);
+    doc.moveDown(1.5);
+    const legalEntity = cafe.legalName || cafe.tradeName || cafe.name || 'Restaurant';
+    const fssaiLic = cafe.fssaiNumber || 'Applied For';
+
+    doc
+      .fontSize(8)
+      .font('Helvetica-Oblique')
+      .fillColor('#666666')
+      .text(
+        `Food preparation, allergen declaration, and hygiene are managed exclusively by ${legalEntity} (FSSAI Lic. No. ${fssaiLic}). QRDine is a software intermediary under Section 79 of the Information Technology Act, 2000.`,
+        { align: 'center' }
+      );
+
+    doc.moveDown(0.8);
     doc
       .fontSize(8)
       .font('Helvetica')
       .fillColor('#888888')
       .text('Thank you for dining with us!', { align: 'center' })
-      .text('Powered by QRDine', { align: 'center' });
+      .text('Powered by QRDine Cloud Platform', { align: 'center' });
 
     doc.end();
 
@@ -243,4 +285,21 @@ const generateInvoicePDF = async (session, orders, cafe, tableNumber) => {
   });
 };
 
-module.exports = { generateInvoicePDF };
+/**
+ * Generate invoice PDF as Buffer (convenience wrapper for downloads and tests).
+ */
+const generateInvoicePdf = async (orderOrSession, cafe) => {
+  const session = {
+    invoiceNumber: orderOrSession.invoiceNumber || orderOrSession.orderNumber || `INV-${Date.now()}`,
+    subtotal: orderOrSession.subtotal || 0,
+    totalGST: orderOrSession.totalGST || 0,
+    totalAmount: orderOrSession.totalAmount || 0,
+    paymentMethod: orderOrSession.paymentMethod || 'cash',
+    completedAt: orderOrSession.createdAt || new Date(),
+  };
+  const orders = Array.isArray(orderOrSession.items) ? [orderOrSession] : [];
+  const filePath = await generateInvoicePDF(session, orders, cafe || {}, '1');
+  return fs.readFileSync(filePath);
+};
+
+module.exports = { generateInvoicePDF, generateInvoicePdf };

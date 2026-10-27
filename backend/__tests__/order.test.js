@@ -59,6 +59,7 @@ jest.mock('../src/models/DiningSession', () => {
     this.addActivity = jest.fn();
   };
   DiningSession.findById = (...a) => mockDiningSessionFindById(...a);
+  DiningSession.findByIdAndUpdate = jest.fn().mockResolvedValue({});
   return DiningSession;
 });
 
@@ -72,6 +73,22 @@ jest.mock('../src/services/socketService', () => ({
 }));
 
 jest.mock('../src/utils/resolveGuestToken', () => (...a) => mockResolveGuestToken(...a));
+
+// Entitlement enforcement is mocked to a pass-through here.
+//
+// This file unit-tests the order controller against mocked models with no
+// database, and the quota path is a real Mongo reservation (atomic conditional
+// update + ledger row) that cannot run without one. The quota itself is covered
+// end-to-end against mongodb-memory-server in
+// `entitlement-enforcement.test.js`; asserting it here would only prove the mock
+// works. Everything else about order creation still runs unmocked.
+jest.mock('../src/services/entitlementService', () => ({
+  METRICS: { ORDERS_PER_MONTH: 'orders.month', OUTLETS: 'outlets' },
+  withUsage: async (options, fn) => ({ result: await fn(), reservation: {} }),
+  reserveUsage: async () => ({ reservationId: 'mock-reservation', unlimited: true }),
+  commitUsage: async () => true,
+  releaseUsage: async () => true,
+}));
 
 // ─── Load controller ONCE ───────────────────────────────────────
 const Order = require('../src/models/Order');

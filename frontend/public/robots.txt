@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Allow: /table/
+Disallow: /admin/
+Disallow: /cafe/
+Disallow: /superadmin/
+Disallow: /api/
+
+Sitemap: https://qrdine.com/sitemap.xml

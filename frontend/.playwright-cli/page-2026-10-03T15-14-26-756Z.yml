@@ -1,0 +1,780 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - generic [aria-hidden] [ref=e5]: MC
+      - generic [ref=e6]:
+        - heading "My Cafe" [level=1] [ref=e8]
+        - paragraph [ref=e9]: Dine-in · QR menu
+      - button "notifications Server" [ref=e10]:
+        - generic [ref=e11]: notifications
+        - generic [ref=e12]: Server
+      - link "Your profile" [ref=e13] [cursor=pointer]:
+        - /url: /profile
+        - generic [ref=e14]: person
+      - button "Cart, 0 items" [ref=e15]:
+        - generic [ref=e16]: shopping_cart
+  - main [ref=e17]:
+    - generic [ref=e18]:
+      - generic [ref=e19]:
+        - generic [ref=e20]: schedule
+        - generic [ref=e21]: Open now
+        - generic [ref=e22]: ·
+        - generic [ref=e23]: Dine-in
+      - generic [ref=e24]:
+        - generic [aria-hidden] [ref=e25]: chair
+        - generic [ref=e26]:
+          - paragraph [ref=e27]: You're seated at
+          - paragraph [ref=e28]: T-1
+        - generic [ref=e29]: Scanning
+    - generic [ref=e31]:
+      - generic [ref=e32]:
+        - generic [aria-hidden]: search
+        - searchbox "Search 68 dishes" [ref=e33]
+      - button "Show vegetarian dishes only" [ref=e34]:
+        - generic [ref=e35]: eco
+    - tablist "Menu categories" [ref=e36]:
+      - tab "All 68" [selected] [ref=e37]:
+        - generic [ref=e38]: All
+        - generic [ref=e39]: "68"
+      - tab "INDIAN RICE 13" [ref=e40]:
+        - generic [ref=e41]: INDIAN RICE
+        - generic [ref=e42]: "13"
+      - tab "NOODLES & RICE 7" [ref=e43]:
+        - generic [ref=e44]: NOODLES & RICE
+        - generic [ref=e45]: "7"
+      - tab "BHOJAN KE SAATH 4" [ref=e46]:
+        - generic [ref=e47]: BHOJAN KE SAATH
+        - generic [ref=e48]: "4"
+      - tab "CHAI 8" [ref=e49]:
+        - generic [ref=e50]: CHAI
+        - generic [ref=e51]: "8"
+      - tab "HOT COFFEE 3" [ref=e52]:
+        - generic [ref=e53]: HOT COFFEE
+        - generic [ref=e54]: "3"
+      - tab "COLD COFFEE 5" [ref=e55]:
+        - generic [ref=e56]: COLD COFFEE
+        - generic [ref=e57]: "5"
+      - tab "BITES 8" [ref=e58]:
+        - generic [ref=e59]: BITES
+        - generic [ref=e60]: "8"
+      - tab "MAGGI 5" [ref=e61]:
+        - generic [ref=e62]: MAGGI
+        - generic [ref=e63]: "5"
+      - tab "BURGER 3" [ref=e64]:
+        - generic [ref=e65]: BURGER
+        - generic [ref=e66]: "3"
+      - tab "PASTA 2" [ref=e67]:
+        - generic [ref=e68]: PASTA
+        - generic [ref=e69]: "2"
+      - tab "SANDWICH 9" [ref=e70]:
+        - generic [ref=e71]: SANDWICH
+        - generic [ref=e72]: "9"
+      - tab "Chinese 1" [ref=e73]:
+        - generic [ref=e74]: Chinese
+        - generic [ref=e75]: "1"
+    - generic [ref=e76]:
+      - region [ref=e77]:
+        - generic [ref=e78]:
+          - heading "INDIAN RICE" [level=2] [ref=e79]
+          - generic [ref=e80]: 13 dishes
+        - generic [ref=e81]:
+          - article [ref=e82]:
+            - button "View Curd Rice" [ref=e83]:
+              - generic [ref=e84]: Curd Rice
+              - generic [ref=e90]: ₹120.00
+            - generic [ref=e92]:
+              - img "Curd Rice — no photo available" [ref=e94]
+              - button "Add Curd Rice to cart" [ref=e103]:
+                - text: Add
+                - generic [ref=e104]: add
+          - article [ref=e105]:
+            - button "View Jeera Rice" [ref=e106]:
+              - generic [ref=e107]: Jeera Rice
+              - generic [ref=e113]: ₹110.00
+            - generic [ref=e115]:
+              - img "Jeera Rice — no photo available" [ref=e117]
+              - button "Add Jeera Rice to cart" [ref=e126]:
+                - text: Add
+                - generic [ref=e127]: add
+          - article [ref=e128]:
+            - button "View Paneer Biryani" [ref=e129]:
+              - generic [ref=e130]: Paneer Biryani
+              - generic [ref=e136]: ₹160.00
+            - generic [ref=e138]:
+              - img "Paneer Biryani — no photo available" [ref=e140]
+              - button "Add Paneer Biryani to cart" [ref=e149]:
+                - text: Add
+                - generic [ref=e150]: add
+          - article [ref=e151]:
+            - button "View Mushroom Biryani" [ref=e152]:
+              - generic [ref=e153]: Mushroom Biryani
+              - generic [ref=e159]: ₹160.00
+            - generic [ref=e161]:
+              - img "Mushroom Biryani — no photo available" [ref=e163]
+              - button "Add Mushroom Biryani to cart" [ref=e172]:
+                - text: Add
+                - generic [ref=e173]: add
+          - article [ref=e174]:
+            - button "View Hyderabadi Biryani" [ref=e175]:
+              - generic [ref=e176]: Hyderabadi Biryani
+              - generic [ref=e182]: ₹160.00
+            - generic [ref=e184]:
+              - img "Hyderabadi Biryani — no photo available" [ref=e186]
+              - button "Add Hyderabadi Biryani to cart" [ref=e195]:
+                - text: Add
+                - generic [ref=e196]: add
+          - article [ref=e197]:
+            - button "View Veg. Biryani" [ref=e198]:
+              - generic [ref=e199]: Veg. Biryani
+              - generic [ref=e205]: ₹150.00
+            - generic [ref=e207]:
+              - img "Veg. Biryani — no photo available" [ref=e209]
+              - button "Add Veg. Biryani to cart" [ref=e218]:
+                - text: Add
+                - generic [ref=e219]: add
+          - article [ref=e220]:
+            - button "View Mushroom Pulao" [ref=e221]:
+              - generic [ref=e222]: Mushroom Pulao
+              - generic [ref=e228]: ₹150.00
+            - generic [ref=e230]:
+              - img "Mushroom Pulao — no photo available" [ref=e232]
+              - button "Add Mushroom Pulao to cart" [ref=e241]:
+                - text: Add
+                - generic [ref=e242]: add
+          - article [ref=e243]:
+            - button "View Paneer Pulao" [ref=e244]:
+              - generic [ref=e245]: Paneer Pulao
+              - generic [ref=e251]: ₹150.00
+            - generic [ref=e253]:
+              - img "Paneer Pulao — no photo available" [ref=e255]
+              - button "Add Paneer Pulao to cart" [ref=e264]:
+                - text: Add
+                - generic [ref=e265]: add
+          - article [ref=e266]:
+            - button "View Green Peas Pulao" [ref=e267]:
+              - generic [ref=e268]: Green Peas Pulao
+              - generic [ref=e274]: ₹140.00
+            - generic [ref=e276]:
+              - img "Green Peas Pulao — no photo available" [ref=e278]
+              - button "Add Green Peas Pulao to cart" [ref=e287]:
+                - text: Add
+                - generic [ref=e288]: add
+          - article [ref=e289]:
+            - button "View Veg. Pulao" [ref=e290]:
+              - generic [ref=e291]: Veg. Pulao
+              - generic [ref=e297]: ₹140.00
+            - generic [ref=e299]:
+              - img "Veg. Pulao — no photo available" [ref=e301]
+              - button "Add Veg. Pulao to cart" [ref=e310]:
+                - text: Add
+                - generic [ref=e311]: add
+          - article [ref=e312]:
+            - button "View Dal Khichdi" [ref=e313]:
+              - generic [ref=e314]: Dal Khichdi
+              - generic [ref=e320]: ₹130.00
+            - generic [ref=e322]:
+              - img "Dal Khichdi — no photo available" [ref=e324]
+              - button "Add Dal Khichdi to cart" [ref=e333]:
+                - text: Add
+                - generic [ref=e334]: add
+          - article [ref=e335]:
+            - button "View Curd Rice Tadka" [ref=e336]:
+              - generic [ref=e337]: Curd Rice Tadka
+              - generic [ref=e343]: ₹130.00
+            - generic [ref=e345]:
+              - img "Curd Rice Tadka — no photo available" [ref=e347]
+              - button "Add Curd Rice Tadka to cart" [ref=e356]:
+                - text: Add
+                - generic [ref=e357]: add
+          - article [ref=e358]:
+            - button "View Steam Rice" [ref=e359]:
+              - generic [ref=e360]: Steam Rice
+              - generic [ref=e366]: ₹80.00
+            - generic [ref=e368]:
+              - img "Steam Rice — no photo available" [ref=e370]
+              - button "Add Steam Rice to cart" [ref=e379]:
+                - text: Add
+                - generic [ref=e380]: add
+      - region [ref=e381]:
+        - generic [ref=e382]:
+          - heading "NOODLES & RICE" [level=2] [ref=e383]
+          - generic [ref=e384]: 7 dishes
+        - generic [ref=e385]:
+          - article [ref=e386]:
+            - button "View American Chopsuey" [ref=e387]:
+              - generic [ref=e388]: American Chopsuey
+              - generic [ref=e394]: ₹180.00
+            - generic [ref=e396]:
+              - img "American Chopsuey — no photo available" [ref=e398]
+              - button "Add American Chopsuey to cart" [ref=e407]:
+                - text: Add
+                - generic [ref=e408]: add
+          - article [ref=e409]:
+            - button "View Veg. Schezwan Noodles" [ref=e410]:
+              - generic [ref=e411]: Veg. Schezwan Noodles
+              - generic [ref=e417]: ₹150.00
+            - generic [ref=e419]:
+              - img "Veg. Schezwan Noodles — no photo available" [ref=e421]
+              - button "Add Veg. Schezwan Noodles to cart" [ref=e430]:
+                - text: Add
+                - generic [ref=e431]: add
+          - article [ref=e432]:
+            - button "View Veg. Chinese Chopsuey" [ref=e433]:
+              - generic [ref=e434]: Veg. Chinese Chopsuey
+              - generic [ref=e440]: ₹160.00
+            - generic [ref=e442]:
+              - img "Veg. Chinese Chopsuey — no photo available" [ref=e444]
+              - button "Add Veg. Chinese Chopsuey to cart" [ref=e453]:
+                - text: Add
+                - generic [ref=e454]: add
+          - article [ref=e455]:
+            - button "View Veg. Hakka Noodles" [ref=e456]:
+              - generic [ref=e457]: Veg. Hakka Noodles
+              - generic [ref=e463]: ₹140.00
+            - generic [ref=e465]:
+              - img "Veg. Hakka Noodles — no photo available" [ref=e467]
+              - button "Add Veg. Hakka Noodles to cart" [ref=e476]:
+                - text: Add
+                - generic [ref=e477]: add
+          - article [ref=e478]:
+            - button "View Veg. Schezwan Triple Fried Rice" [ref=e479]:
+              - generic [ref=e480]: Veg. Schezwan Triple Fried Rice
+              - generic [ref=e486]: ₹190.00
+            - generic [ref=e488]:
+              - img "Veg. Schezwan Triple Fried Rice — no photo available" [ref=e490]
+              - button "Add Veg. Schezwan Triple Fried Rice to cart" [ref=e499]:
+                - text: Add
+                - generic [ref=e500]: add
+          - article [ref=e501]:
+            - button "View Veg. Schezwan Fried Rice" [ref=e502]:
+              - generic [ref=e503]: Veg. Schezwan Fried Rice
+              - generic [ref=e509]: ₹150.00
+            - generic [ref=e511]:
+              - img "Veg. Schezwan Fried Rice — no photo available" [ref=e513]
+              - button "Add Veg. Schezwan Fried Rice to cart" [ref=e522]:
+                - text: Add
+                - generic [ref=e523]: add
+          - article [ref=e524]:
+            - button "View Veg. Fried Rice" [ref=e525]:
+              - generic [ref=e526]: Veg. Fried Rice
+              - generic [ref=e532]: ₹140.00
+            - generic [ref=e534]:
+              - img "Veg. Fried Rice — no photo available" [ref=e536]
+              - button "Add Veg. Fried Rice to cart" [ref=e545]:
+                - text: Add
+                - generic [ref=e546]: add
+      - region [ref=e547]:
+        - generic [ref=e548]:
+          - heading "BHOJAN KE SAATH" [level=2] [ref=e549]
+          - generic [ref=e550]: 4 dishes
+        - generic [ref=e551]:
+          - article [ref=e552]:
+            - button "View Green Salad" [ref=e553]:
+              - generic [ref=e554]: Green Salad
+              - generic [ref=e560]: ₹70.00
+            - generic [ref=e562]:
+              - img "Green Salad — no photo available" [ref=e564]
+              - button "Add Green Salad to cart" [ref=e573]:
+                - text: Add
+                - generic [ref=e574]: add
+          - article [ref=e575]:
+            - button "View Curd (Bowl)" [ref=e576]:
+              - generic [ref=e577]: Curd (Bowl)
+              - generic [ref=e583]: ₹50.00
+            - generic [ref=e585]:
+              - img "Curd (Bowl) — no photo available" [ref=e587]
+              - button "Add Curd (Bowl) to cart" [ref=e596]:
+                - text: Add
+                - generic [ref=e597]: add
+          - article [ref=e598]:
+            - button "View Masala Papad" [ref=e599]:
+              - generic [ref=e600]: Masala Papad
+              - generic [ref=e606]: ₹60.00
+            - generic [ref=e608]:
+              - img "Masala Papad — no photo available" [ref=e610]
+              - button "Add Masala Papad to cart" [ref=e619]:
+                - text: Add
+                - generic [ref=e620]: add
+          - article [ref=e621]:
+            - button "View Papad (Fried/Roasted)" [ref=e622]:
+              - generic [ref=e623]: Papad (Fried/Roasted)
+              - generic [ref=e629]: ₹25.00
+            - generic [ref=e631]:
+              - img "Papad (Fried/Roasted) — no photo available" [ref=e633]
+              - button "Add Papad (Fried/Roasted) to cart" [ref=e642]:
+                - text: Add
+                - generic [ref=e643]: add
+      - region [ref=e644]:
+        - generic [ref=e645]:
+          - heading "CHAI" [level=2] [ref=e646]
+          - generic [ref=e647]: 8 dishes
+        - generic [ref=e648]:
+          - article [ref=e649]:
+            - button "View LEMON CHAI" [ref=e650]:
+              - generic [ref=e651]: LEMON CHAI
+              - generic [ref=e657]:
+                - generic [ref=e658]: ₹30.00
+                - generic [ref=e659]: onwards
+            - generic [ref=e660]:
+              - img "LEMON CHAI — no photo available" [ref=e662]
+              - button "Add LEMON CHAI to cart" [ref=e671]:
+                - text: Add
+                - generic [ref=e672]: add
+          - article [ref=e673]:
+            - button "View MASALA CHAI" [ref=e674]:
+              - generic [ref=e675]: MASALA CHAI
+              - generic [ref=e681]:
+                - generic [ref=e682]: ₹30.00
+                - generic [ref=e683]: onwards
+            - generic [ref=e684]:
+              - img "MASALA CHAI — no photo available" [ref=e686]
+              - button "Add MASALA CHAI to cart" [ref=e695]:
+                - text: Add
+                - generic [ref=e696]: add
+          - article [ref=e697]:
+            - button "View KESAR CHAI" [ref=e698]:
+              - generic [ref=e699]: KESAR CHAI
+              - generic [ref=e705]:
+                - generic [ref=e706]: ₹30.00
+                - generic [ref=e707]: onwards
+            - generic [ref=e708]:
+              - img "KESAR CHAI — no photo available" [ref=e710]
+              - button "Add KESAR CHAI to cart" [ref=e719]:
+                - text: Add
+                - generic [ref=e720]: add
+          - article [ref=e721]:
+            - button "View PAAN CHAI" [ref=e722]:
+              - generic [ref=e723]: PAAN CHAI
+              - generic [ref=e729]:
+                - generic [ref=e730]: ₹25.00
+                - generic [ref=e731]: onwards
+            - generic [ref=e732]:
+              - img "PAAN CHAI — no photo available" [ref=e734]
+              - button "Add PAAN CHAI to cart" [ref=e743]:
+                - text: Add
+                - generic [ref=e744]: add
+          - article [ref=e745]:
+            - button "View ELAICHI CHAI" [ref=e746]:
+              - generic [ref=e747]: ELAICHI CHAI
+              - generic [ref=e753]:
+                - generic [ref=e754]: ₹25.00
+                - generic [ref=e755]: onwards
+            - generic [ref=e756]:
+              - img "ELAICHI CHAI — no photo available" [ref=e758]
+              - button "Add ELAICHI CHAI to cart" [ref=e767]:
+                - text: Add
+                - generic [ref=e768]: add
+          - article [ref=e769]:
+            - button "View ROSE CHAI" [ref=e770]:
+              - generic [ref=e771]: ROSE CHAI
+              - generic [ref=e777]:
+                - generic [ref=e778]: ₹20.00
+                - generic [ref=e779]: onwards
+            - generic [ref=e780]:
+              - img "ROSE CHAI — no photo available" [ref=e782]
+              - button "Add ROSE CHAI to cart" [ref=e791]:
+                - text: Add
+                - generic [ref=e792]: add
+          - article [ref=e793]:
+            - button "View CHOCOLATE CHAI" [ref=e794]:
+              - generic [ref=e795]: CHOCOLATE CHAI
+              - generic [ref=e801]:
+                - generic [ref=e802]: ₹20.00
+                - generic [ref=e803]: onwards
+            - generic [ref=e804]:
+              - img "CHOCOLATE CHAI — no photo available" [ref=e806]
+              - button "Add CHOCOLATE CHAI to cart" [ref=e815]:
+                - text: Add
+                - generic [ref=e816]: add
+          - article [ref=e817]:
+            - button "View ADRAK CHAI" [ref=e818]:
+              - generic [ref=e819]: ADRAK CHAI
+              - generic [ref=e825]:
+                - generic [ref=e826]: ₹20.00
+                - generic [ref=e827]: onwards
+            - generic [ref=e828]:
+              - img "ADRAK CHAI — no photo available" [ref=e830]
+              - button "Add ADRAK CHAI to cart" [ref=e839]:
+                - text: Add
+                - generic [ref=e840]: add
+      - region [ref=e841]:
+        - generic [ref=e842]:
+          - heading "HOT COFFEE" [level=2] [ref=e843]
+          - generic [ref=e844]: 3 dishes
+        - generic [ref=e845]:
+          - article [ref=e846]:
+            - button "View CHOCOLATE HOT COFFEE" [ref=e847]:
+              - generic [ref=e848]: CHOCOLATE HOT COFFEE
+              - generic [ref=e854]:
+                - generic [ref=e855]: ₹25.00
+                - generic [ref=e856]: onwards
+            - generic [ref=e857]:
+              - img "CHOCOLATE HOT COFFEE — no photo available" [ref=e859]
+              - button "Add CHOCOLATE HOT COFFEE to cart" [ref=e868]:
+                - text: Add
+                - generic [ref=e869]: add
+          - article [ref=e870]:
+            - button "View STRONG HOT COFFEE" [ref=e871]:
+              - generic [ref=e872]: STRONG HOT COFFEE
+              - generic [ref=e878]:
+                - generic [ref=e879]: ₹25.00
+                - generic [ref=e880]: onwards
+            - generic [ref=e881]:
+              - img "STRONG HOT COFFEE — no photo available" [ref=e883]
+              - button "Add STRONG HOT COFFEE to cart" [ref=e892]:
+                - text: Add
+                - generic [ref=e893]: add
+          - article [ref=e894]:
+            - button "View HOT COFFEE" [ref=e895]:
+              - generic [ref=e896]: HOT COFFEE
+              - generic [ref=e902]:
+                - generic [ref=e903]: ₹20.00
+                - generic [ref=e904]: onwards
+            - generic [ref=e905]:
+              - img "HOT COFFEE — no photo available" [ref=e907]
+              - button "Add HOT COFFEE to cart" [ref=e916]:
+                - text: Add
+                - generic [ref=e917]: add
+      - region [ref=e918]:
+        - generic [ref=e919]:
+          - heading "COLD COFFEE" [level=2] [ref=e920]
+          - generic [ref=e921]: 5 dishes
+        - generic [ref=e922]:
+          - article [ref=e923]:
+            - button "View CSB SPECIAL COLD COFFEE" [ref=e924]:
+              - generic [ref=e925]: CSB SPECIAL COLD COFFEE
+              - generic [ref=e931]: ₹170.00
+            - generic [ref=e933]:
+              - img "CSB SPECIAL COLD COFFEE — no photo available" [ref=e935]
+              - button "Add CSB SPECIAL COLD COFFEE to cart" [ref=e944]:
+                - text: Add
+                - generic [ref=e945]: add
+          - article [ref=e946]:
+            - button "View BROWNIE COLD COFFEE" [ref=e947]:
+              - generic [ref=e948]: BROWNIE COLD COFFEE
+              - generic [ref=e954]: ₹160.00
+            - generic [ref=e956]:
+              - img "BROWNIE COLD COFFEE — no photo available" [ref=e958]
+              - button "Add BROWNIE COLD COFFEE to cart" [ref=e967]:
+                - text: Add
+                - generic [ref=e968]: add
+          - article [ref=e969]:
+            - button "View CHOCOLATE COLD COFFEE" [ref=e970]:
+              - generic [ref=e971]: CHOCOLATE COLD COFFEE
+              - generic [ref=e977]: ₹95.00
+            - generic [ref=e979]:
+              - img "CHOCOLATE COLD COFFEE — no photo available" [ref=e981]
+              - button "Add CHOCOLATE COLD COFFEE to cart" [ref=e990]:
+                - text: Add
+                - generic [ref=e991]: add
+          - article [ref=e992]:
+            - button "View STRONG COLD COFFEE" [ref=e993]:
+              - generic [ref=e994]: STRONG COLD COFFEE
+              - generic [ref=e1000]: ₹95.00
+            - generic [ref=e1002]:
+              - img "STRONG COLD COFFEE — no photo available" [ref=e1004]
+              - button "Add STRONG COLD COFFEE to cart" [ref=e1013]:
+                - text: Add
+                - generic [ref=e1014]: add
+          - article [ref=e1015]:
+            - button "View COLD COFFEE" [ref=e1016]:
+              - generic [ref=e1017]: COLD COFFEE
+              - generic [ref=e1023]: ₹80.00
+            - generic [ref=e1025]:
+              - img "COLD COFFEE — no photo available" [ref=e1027]
+              - button "Add COLD COFFEE to cart" [ref=e1036]:
+                - text: Add
+                - generic [ref=e1037]: add
+      - region [ref=e1038]:
+        - generic [ref=e1039]:
+          - heading "BITES" [level=2] [ref=e1040]
+          - generic [ref=e1041]: 8 dishes
+        - generic [ref=e1042]:
+          - article [ref=e1043]:
+            - button "View EXTRA LOADED FRIES" [ref=e1044]:
+              - generic [ref=e1045]: EXTRA LOADED FRIES
+              - generic [ref=e1051]: ₹140.00
+            - generic [ref=e1053]:
+              - img "EXTRA LOADED FRIES — no photo available" [ref=e1055]
+              - button "Add EXTRA LOADED FRIES to cart" [ref=e1064]:
+                - text: Add
+                - generic [ref=e1065]: add
+          - article [ref=e1066]:
+            - button "View PERI-PERI FRENCH FRIES" [ref=e1067]:
+              - generic [ref=e1068]: PERI-PERI FRENCH FRIES
+              - generic [ref=e1074]: ₹110.00
+            - generic [ref=e1076]:
+              - img "PERI-PERI FRENCH FRIES — no photo available" [ref=e1078]
+              - button "Add PERI-PERI FRENCH FRIES to cart" [ref=e1087]:
+                - text: Add
+                - generic [ref=e1088]: add
+          - article [ref=e1089]:
+            - button "View CHEESY NUGGETS" [ref=e1090]:
+              - generic [ref=e1091]: CHEESY NUGGETS
+              - generic [ref=e1097]: ₹95.00
+            - generic [ref=e1099]:
+              - img "CHEESY NUGGETS — no photo available" [ref=e1101]
+              - button "Add CHEESY NUGGETS to cart" [ref=e1110]:
+                - text: Add
+                - generic [ref=e1111]: add
+          - article [ref=e1112]:
+            - button "View CHEESE CHILLI TOAST" [ref=e1113]:
+              - generic [ref=e1114]: CHEESE CHILLI TOAST
+              - generic [ref=e1120]: ₹90.00
+            - generic [ref=e1122]:
+              - img "CHEESE CHILLI TOAST — no photo available" [ref=e1124]
+              - button "Add CHEESE CHILLI TOAST to cart" [ref=e1133]:
+                - text: Add
+                - generic [ref=e1134]: add
+          - article [ref=e1135]:
+            - button "View FRENCH FRIES" [ref=e1136]:
+              - generic [ref=e1137]: FRENCH FRIES
+              - generic [ref=e1143]: ₹90.00
+            - generic [ref=e1145]:
+              - img "FRENCH FRIES — no photo available" [ref=e1147]
+              - button "Add FRENCH FRIES to cart" [ref=e1156]:
+                - text: Add
+                - generic [ref=e1157]: add
+          - article [ref=e1158]:
+            - button "View CHEESE GARLIC BREAD" [ref=e1159]:
+              - generic [ref=e1160]: CHEESE GARLIC BREAD
+              - generic [ref=e1166]: ₹75.00
+            - generic [ref=e1168]:
+              - img "CHEESE GARLIC BREAD — no photo available" [ref=e1170]
+              - button "Add CHEESE GARLIC BREAD to cart" [ref=e1179]:
+                - text: Add
+                - generic [ref=e1180]: add
+          - article [ref=e1181]:
+            - button "View CORN CHAAT" [ref=e1182]:
+              - generic [ref=e1183]: CORN CHAAT
+              - generic [ref=e1189]: ₹50.00
+            - generic [ref=e1191]:
+              - img "CORN CHAAT — no photo available" [ref=e1193]
+              - button "Add CORN CHAAT to cart" [ref=e1202]:
+                - text: Add
+                - generic [ref=e1203]: add
+          - article [ref=e1204]:
+            - button "View MASKA BUN" [ref=e1205]:
+              - generic [ref=e1206]: MASKA BUN
+              - generic [ref=e1212]: ₹50.00
+            - generic [ref=e1214]:
+              - img "MASKA BUN — no photo available" [ref=e1216]
+              - button "Add MASKA BUN to cart" [ref=e1225]:
+                - text: Add
+                - generic [ref=e1226]: add
+      - region [ref=e1227]:
+        - generic [ref=e1228]:
+          - heading "MAGGI" [level=2] [ref=e1229]
+          - generic [ref=e1230]: 5 dishes
+        - generic [ref=e1231]:
+          - article [ref=e1232]:
+            - button "View BUTTER CHEESE MAGGI" [ref=e1233]:
+              - generic [ref=e1234]: BUTTER CHEESE MAGGI
+              - generic [ref=e1240]: ₹120.00
+            - generic [ref=e1242]:
+              - img "BUTTER CHEESE MAGGI — no photo available" [ref=e1244]
+              - button "Add BUTTER CHEESE MAGGI to cart" [ref=e1253]:
+                - text: Add
+                - generic [ref=e1254]: add
+          - article [ref=e1255]:
+            - button "View CSB PERI-PERI TADKA MAGGI" [ref=e1256]:
+              - generic [ref=e1257]: CSB PERI-PERI TADKA MAGGI
+              - generic [ref=e1263]: ₹100.00
+            - generic [ref=e1265]:
+              - img "CSB PERI-PERI TADKA MAGGI — no photo available" [ref=e1267]
+              - button "Add CSB PERI-PERI TADKA MAGGI to cart" [ref=e1276]:
+                - text: Add
+                - generic [ref=e1277]: add
+          - article [ref=e1278]:
+            - button "View TANDOORI MAGGI" [ref=e1279]:
+              - generic [ref=e1280]: TANDOORI MAGGI
+              - generic [ref=e1286]: ₹90.00
+            - generic [ref=e1288]:
+              - img "TANDOORI MAGGI — no photo available" [ref=e1290]
+              - button "Add TANDOORI MAGGI to cart" [ref=e1299]:
+                - text: Add
+                - generic [ref=e1300]: add
+          - article [ref=e1301]:
+            - button "View DOUBLE MASALA MAGGI" [ref=e1302]:
+              - generic [ref=e1303]: DOUBLE MASALA MAGGI
+              - generic [ref=e1309]: ₹80.00
+            - generic [ref=e1311]:
+              - img "DOUBLE MASALA MAGGI — no photo available" [ref=e1313]
+              - button "Add DOUBLE MASALA MAGGI to cart" [ref=e1322]:
+                - text: Add
+                - generic [ref=e1323]: add
+          - article [ref=e1324]:
+            - button "View PLAIN MAGGI" [ref=e1325]:
+              - generic [ref=e1326]: PLAIN MAGGI
+              - generic [ref=e1332]: ₹70.00
+            - generic [ref=e1334]:
+              - img "PLAIN MAGGI — no photo available" [ref=e1336]
+              - button "Add PLAIN MAGGI to cart" [ref=e1345]:
+                - text: Add
+                - generic [ref=e1346]: add
+      - region [ref=e1347]:
+        - generic [ref=e1348]:
+          - heading "BURGER" [level=2] [ref=e1349]
+          - generic [ref=e1350]: 3 dishes
+        - generic [ref=e1351]:
+          - article [ref=e1352]:
+            - button "View VEG CSB SPECIAL BURGER" [ref=e1353]:
+              - generic [ref=e1354]: VEG CSB SPECIAL BURGER
+              - generic [ref=e1360]: ₹140.00
+            - generic [ref=e1362]:
+              - img "VEG CSB SPECIAL BURGER — no photo available" [ref=e1364]
+              - button "Add VEG CSB SPECIAL BURGER to cart" [ref=e1373]:
+                - text: Add
+                - generic [ref=e1374]: add
+          - article [ref=e1375]:
+            - button "View VEG BURGER" [ref=e1376]:
+              - generic [ref=e1377]: VEG BURGER
+              - generic [ref=e1383]: ₹110.00
+            - generic [ref=e1385]:
+              - img "VEG BURGER — no photo available" [ref=e1387]
+              - button "Add VEG BURGER to cart" [ref=e1396]:
+                - text: Add
+                - generic [ref=e1397]: add
+          - article [ref=e1398]:
+            - button "View ALOO TIKKI BURGER" [ref=e1399]:
+              - generic [ref=e1400]: ALOO TIKKI BURGER
+              - generic [ref=e1406]: ₹70.00
+            - generic [ref=e1408]:
+              - img "ALOO TIKKI BURGER — no photo available" [ref=e1410]
+              - button "Add ALOO TIKKI BURGER to cart" [ref=e1419]:
+                - text: Add
+                - generic [ref=e1420]: add
+      - region [ref=e1421]:
+        - generic [ref=e1422]:
+          - heading "PASTA" [level=2] [ref=e1423]
+          - generic [ref=e1424]: 2 dishes
+        - generic [ref=e1425]:
+          - article [ref=e1426]:
+            - button "View BAKED CHEESE PASTA" [ref=e1427]:
+              - generic [ref=e1428]: BAKED CHEESE PASTA
+              - generic [ref=e1434]: ₹180.00
+            - generic [ref=e1436]:
+              - img "BAKED CHEESE PASTA — no photo available" [ref=e1438]
+              - button "Add BAKED CHEESE PASTA to cart" [ref=e1447]:
+                - text: Add
+                - generic [ref=e1448]: add
+          - article [ref=e1449]:
+            - button "View RED SAUCE PASTA" [ref=e1450]:
+              - generic [ref=e1451]: RED SAUCE PASTA
+              - generic [ref=e1457]: ₹160.00
+            - generic [ref=e1459]:
+              - img "RED SAUCE PASTA — no photo available" [ref=e1461]
+              - button "Add RED SAUCE PASTA to cart" [ref=e1470]:
+                - text: Add
+                - generic [ref=e1471]: add
+      - region [ref=e1472]:
+        - generic [ref=e1473]:
+          - heading "SANDWICH" [level=2] [ref=e1474]
+          - generic [ref=e1475]: 9 dishes
+        - generic [ref=e1476]:
+          - article [ref=e1477]:
+            - button "View PANEER TAKA TAK SANDWICH" [ref=e1478]:
+              - generic [ref=e1479]: PANEER TAKA TAK SANDWICH
+              - generic [ref=e1485]: ₹110.00
+            - generic [ref=e1487]:
+              - img "PANEER TAKA TAK SANDWICH — no photo available" [ref=e1489]
+              - button "Add PANEER TAKA TAK SANDWICH to cart" [ref=e1498]:
+                - text: Add
+                - generic [ref=e1499]: add
+          - article [ref=e1500]:
+            - button "View CHEESE CHUTNEY SANDWICH" [ref=e1501]:
+              - generic [ref=e1502]: CHEESE CHUTNEY SANDWICH
+              - generic [ref=e1508]: ₹100.00
+            - generic [ref=e1510]:
+              - img "CHEESE CHUTNEY SANDWICH — no photo available" [ref=e1512]
+              - button "Add CHEESE CHUTNEY SANDWICH to cart" [ref=e1521]:
+                - text: Add
+                - generic [ref=e1522]: add
+          - article [ref=e1523]:
+            - button "View PANEER BHURJI SANDWICH" [ref=e1524]:
+              - generic [ref=e1525]: PANEER BHURJI SANDWICH
+              - generic [ref=e1531]: ₹100.00
+            - generic [ref=e1533]:
+              - img "PANEER BHURJI SANDWICH — no photo available" [ref=e1535]
+              - button "Add PANEER BHURJI SANDWICH to cart" [ref=e1544]:
+                - text: Add
+                - generic [ref=e1545]: add
+          - article [ref=e1546]:
+            - button "View DESI MASALA SANDWICH" [ref=e1547]:
+              - generic [ref=e1548]: DESI MASALA SANDWICH
+              - generic [ref=e1554]: ₹85.00
+            - generic [ref=e1556]:
+              - img "DESI MASALA SANDWICH — no photo available" [ref=e1558]
+              - button "Add DESI MASALA SANDWICH to cart" [ref=e1567]:
+                - text: Add
+                - generic [ref=e1568]: add
+          - article [ref=e1569]:
+            - button "View CORN MAYO SANDWICH" [ref=e1570]:
+              - generic [ref=e1571]: CORN MAYO SANDWICH
+              - generic [ref=e1577]: ₹85.00
+            - generic [ref=e1579]:
+              - img "CORN MAYO SANDWICH — no photo available" [ref=e1581]
+              - button "Add CORN MAYO SANDWICH to cart" [ref=e1590]:
+                - text: Add
+                - generic [ref=e1591]: add
+          - article [ref=e1592]:
+            - button "View VEGGIE GRILLED SANDWICH" [ref=e1593]:
+              - generic [ref=e1594]: VEGGIE GRILLED SANDWICH
+              - generic [ref=e1600]: ₹85.00
+            - generic [ref=e1602]:
+              - img "VEGGIE GRILLED SANDWICH — no photo available" [ref=e1604]
+              - button "Add VEGGIE GRILLED SANDWICH to cart" [ref=e1613]:
+                - text: Add
+                - generic [ref=e1614]: add
+          - article [ref=e1615]:
+            - button "View MAYO DELIGHT SANDWICH" [ref=e1616]:
+              - generic [ref=e1617]: MAYO DELIGHT SANDWICH
+              - generic [ref=e1623]: ₹80.00
+            - generic [ref=e1625]:
+              - img "MAYO DELIGHT SANDWICH — no photo available" [ref=e1627]
+              - button "Add MAYO DELIGHT SANDWICH to cart" [ref=e1636]:
+                - text: Add
+                - generic [ref=e1637]: add
+          - article [ref=e1638]:
+            - button "View BOMBAY KACHA SANDWICH" [ref=e1639]:
+              - generic [ref=e1640]: BOMBAY KACHA SANDWICH
+              - generic [ref=e1646]: ₹80.00
+            - generic [ref=e1648]:
+              - img "BOMBAY KACHA SANDWICH — no photo available" [ref=e1650]
+              - button "Add BOMBAY KACHA SANDWICH to cart" [ref=e1659]:
+                - text: Add
+                - generic [ref=e1660]: add
+          - article [ref=e1661]:
+            - button "View CORN MASALA SANDWICH" [ref=e1662]:
+              - generic [ref=e1663]: CORN MASALA SANDWICH
+              - generic [ref=e1669]: ₹80.00
+            - generic [ref=e1671]:
+              - img "CORN MASALA SANDWICH — no photo available" [ref=e1673]
+              - button "Add CORN MASALA SANDWICH to cart" [ref=e1682]:
+                - text: Add
+                - generic [ref=e1683]: add
+      - region [ref=e1684]:
+        - generic [ref=e1685]:
+          - heading "Chinese" [level=2] [ref=e1686]
+          - generic [ref=e1687]: 1 dish
+        - article [ref=e1689]:
+          - button "View Steam Momos" [ref=e1690]:
+            - generic [ref=e1691]: Steam Momos
+            - generic [ref=e1697]:
+              - generic [ref=e1698]: ₹139.00
+              - generic [ref=e1699]: onwards
+          - generic [ref=e1700]:
+            - img "Steam Momos — no photo available" [ref=e1702]
+            - button "Add Steam Momos to cart" [ref=e1711]:
+              - text: Add
+              - generic [ref=e1712]: add
+  - generic [ref=e1714]:
+    - button "concierge Help" [ref=e1715] [cursor=pointer]:
+      - generic [ref=e1716]: concierge
+      - generic [ref=e1717]: Help
+    - button "receipt_long Bill" [ref=e1718] [cursor=pointer]:
+      - generic [ref=e1719]: receipt_long
+      - generic [ref=e1720]: Bill
+    - button "shopping_cart Cart" [ref=e1721] [cursor=pointer]:
+      - generic [ref=e1722]: shopping_cart
+      - generic [ref=e1724]: Cart

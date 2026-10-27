@@ -3,6 +3,7 @@
 import React, { useTransition } from "react";
 import { Order, OrderStatus } from "@/types";
 import { updateOrderStatus } from "@/actions/orders";
+import { OrderPipelineActions } from "@/components/admin/OrderPipelineActions";
 import Link from "next/link";
 import { formatCurrency } from "@/utils/currency";
 
@@ -113,7 +114,7 @@ export const OrderTicket: React.FC<OrderTicketProps> = ({
       {/* Note preview */}
       {order.notes && (
         <div className="bg-surface-container-low text-on-surface-variant/80 rounded px-xs py-base text-body-sm font-normal italic truncate">
-          Note: "{order.notes}"
+          Note: &ldquo;{order.notes}&rdquo;
         </div>
       )}
 
@@ -123,7 +124,7 @@ export const OrderTicket: React.FC<OrderTicketProps> = ({
           {formatCurrency(total)}
         </span>
         <div className="flex gap-xs">
-          <Link href={`/admin/orders/${order.id}`} passHref>
+          <Link href={`/cafe/orders/${order.id}`} passHref>
             <button
               aria-label="Inspect ticket"
               className="px-sm py-base rounded-full bg-surface-container-high hover:bg-surface-container text-on-surface text-body-sm font-semibold cursor-pointer"
@@ -151,6 +152,9 @@ export const OrderTicket: React.FC<OrderTicketProps> = ({
           Cancel Order
         </button>
       )}
+
+      {/* Module #03 — move table / add to tab / refund reconciliation */}
+      <OrderPipelineActions order={order} onDone={onStatusUpdated} />
     </div>
   );
 };

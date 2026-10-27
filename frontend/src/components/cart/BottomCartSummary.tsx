@@ -1,28 +1,31 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useMemo } from "react";
 import Link from "next/link";
 import { useCartStore } from "@/store/cartStore";
 import { formatCurrency } from "@/utils/currency";
+import { useHydrated } from "@/hooks/useHydrated";
 
 export const BottomCartSummary: React.FC = () => {
-  const { items, getTotalItems, getTotalPrice } = useCartStore();
-  const [totalItems, setTotalItems] = useState(0);
-  const [totalPrice, setTotalPrice] = useState(0);
-  const [mounted, setMounted] = useState(false);
+  const items = useCartStore((s) => s.items);
+  // The cart is persisted to localStorage, so the server cannot know its
+  // contents. Gate on the client taking over instead of a mount-effect flag.
+  const hydrated = useHydrated();
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (mounted) {
-      setTotalItems(getTotalItems());
-      setTotalPrice(getTotalPrice());
+  // Derived, not stored: these were previously mirrored into `useState` by an
+  // effect, which meant one render with the old totals before the new ones
+  // landed — so adding an item briefly showed the pre-add price.
+  const { totalItems, totalPrice } = useMemo(() => {
+    let count = 0;
+    let price = 0;
+    for (const item of items) {
+      count += item.quantity;
+      price += Number(item.unitPrice ?? item.menuItem.price) * item.quantity;
     }
-  }, [items, mounted, getTotalItems, getTotalPrice]);
+    return { totalItems: count, totalPrice: price };
+  }, [items]);
 
-  if (!mounted || totalItems === 0) return null;
+  if (!hydrated || totalItems === 0) return null;
 
   return (
     <>

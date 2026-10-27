@@ -14,6 +14,12 @@ const mockCafeCreate = jest.fn();
 const mockCafeStartSession = jest.fn();
 const mockUserFindById = jest.fn();
 const mockGenerateToken = jest.fn();
+// registerOwner opens the tenant's free trial inside the same transaction as
+// the signup, so the service is a dependency of this controller.
+const mockEnsureSubscription = jest.fn();
+// `login` now refuses to mint a token for a terminated tenant, so the access
+// lookup is a dependency of this controller too.
+const mockGetAccessForCafe = jest.fn();
 
 // ─── Register mocks ONCE at top level ───────────────────────────
 jest.mock('../src/models/User', () => {
@@ -41,6 +47,11 @@ jest.mock('../src/models/Cafe', () => {
 });
 
 jest.mock('../src/utils/generateToken', () => (...a) => mockGenerateToken(...a));
+
+jest.mock('../src/services/subscriptionService', () => ({
+  ensureSubscription: (...a) => mockEnsureSubscription(...a),
+  getAccessForCafe: (...a) => mockGetAccessForCafe(...a),
+}));
 
 // ─── Load controller ONCE ───────────────────────────────────────
 const { registerOwner, login, getCurrentUser } = require('../src/controllers/authController');
@@ -76,12 +87,37 @@ describe('Auth — registerOwner', () => {
     });
     mockCafeCreate.mockResolvedValue([{ _id: 'cafe-123', name: 'Test Cafe' }]);
     mockUserCreate.mockResolvedValue([{ _id: 'user-123', cafeId: 'cafe-123', name: 'John Doe', email: 'john@example.com', role: 'owner', createdAt: new Date(), updatedAt: new Date() }]);
+    mockEnsureSubscription.mockResolvedValue({ _id: 'sub-123' });
 
     await registerOwner(req, res, next);
 
     expect(res.status).toHaveBeenCalledWith(201);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: 'Owner registration successful', token: 'mock-jwt-token' }));
     expect(mockGenerateToken).toHaveBeenCalledWith({ id: 'user-123', cafeId: 'cafe-123', role: 'owner' });
+  });
+
+  it('opens the free trial inside the signup transaction', async () => {
+    const req = mockReq({ body: validBody });
+    const res = mockRes();
+    const next = mockNext();
+    const session = {
+      withTransaction: jest.fn().mockImplementation(async (fn) => fn()),
+      endSession: jest.fn(),
+    };
+
+    mockUserFindOne.mockResolvedValue(null);
+    mockCafeFindOne.mockResolvedValue(null);
+    mockCafeStartSession.mockResolvedValue(session);
+    mockCafeCreate.mockResolvedValue([{ _id: 'cafe-123', name: 'Test Cafe' }]);
+    mockUserCreate.mockResolvedValue([{ _id: 'user-123', cafeId: 'cafe-123', name: 'John Doe', email: 'john@example.com', role: 'owner' }]);
+    mockEnsureSubscription.mockResolvedValue({ _id: 'sub-123' });
+
+    await registerOwner(req, res, next);
+
+    // Same session, so a signup can never leave a cafe that exists but has no
+    // subscription to bill or gate.
+    expect(mockEnsureSubscription).toHaveBeenCalledWith('cafe-123', { session });
+    expect(next).not.toHaveBeenCalled();
   });
 
   it('should reject registration if user email already exists', async () => {
@@ -131,6 +167,34 @@ describe('Auth — registerOwner', () => {
 describe('Auth — login', () => {
   beforeEach(() => {
     mockGenerateToken.mockReturnValue('mock-jwt-token');
+    // Default: the tenant is in good standing. Individual tests override this.
+    mockGetAccessForCafe.mockResolvedValue({
+      subscription: { status: 'trialing' },
+      access: { isTerminated: false },
+    });
+  });
+
+  it('refuses to mint a token for a terminated tenant', async () => {
+    const hashedPassword = await bcrypt.hash('password123', 10);
+    const mockUser = { _id: 'user-123', cafeId: 'cafe-123', name: 'John Doe', email: 'john@example.com', password: hashedPassword, role: 'owner' };
+    mockUserFindOne.mockResolvedValue(mockUser);
+    mockGetAccessForCafe.mockResolvedValue({
+      subscription: { status: 'terminated' },
+      access: { isTerminated: true },
+    });
+
+    const req = mockReq({ body: { email: 'john@example.com', password: 'password123' } });
+    const res = mockRes();
+    const next = mockNext();
+
+    await login(req, res, next);
+
+    // Correct credentials, but a suspended cafe must not get a working session.
+    expect(mockGenerateToken).not.toHaveBeenCalled();
+    expect(res.status).not.toHaveBeenCalledWith(200);
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({ statusCode: 410 })
+    );
   });
 
   it('should login successfully with valid credentials', async () => {

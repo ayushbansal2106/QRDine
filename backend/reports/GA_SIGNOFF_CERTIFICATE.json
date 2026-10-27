@@ -1,0 +1,18 @@
+{
+  "certificateNumber": "GA-QRD-1793094108709-B08D53",
+  "issuedAt": "2026-10-27T09:41:48.787Z",
+  "status": "GENERAL_AVAILABILITY_APPROVED",
+  "auditedEntity": {
+    "cafeId": "6ae07008f48d9c4b24460991",
+    "cafeName": "Unknown Cafe",
+    "signedBy": "Aarav Singhania (Authorized Owner)"
+  },
+  "auditedMetrics": {
+    "totalOrdersHandled": 0,
+    "totalSalesRupees": 0,
+    "billingDiscrepancies": 0,
+    "droppedOrders": 0,
+    "crossTenantLeaks": 0
+  },
+  "statutoryGateApproval": "Gate 4 - Pilot Exit Review Passed"
+}

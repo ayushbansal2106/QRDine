@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { getSessionAnalytics } from "@/actions/analytics";
-import { SessionAnalyticsData, ConversionFunnel } from "@/types";
+import { SessionAnalyticsData } from "@/types";
 
 const periods = [
   { label: "Today", value: "today" },
@@ -40,7 +40,7 @@ const FunnelBar: React.FC<{
             {value}
           </span>
           {dropOff && Number(dropOff) > 0 && (
-            <span className="font-inter text-label-sm text-[#c62828] bg-[#ffebee] px-xs py-[1px] rounded-full">
+            <span className="font-inter text-label-sm text-on-error-container bg-error-container px-xs py-[1px] rounded-full">
               −{dropOff}%
             </span>
           )}
@@ -210,7 +210,7 @@ export const SessionAnalytics: React.FC = () => {
         {/* Conversion rate summary */}
         {data?.funnel && data.funnel.sessionsStarted > 0 && (
           <div className="mt-md pt-sm border-t border-surface-container flex items-center gap-xs">
-            <span className="material-symbols-outlined text-[16px] text-[#2e7d32]">
+            <span className="material-symbols-outlined text-[16px] text-success">
               check_circle
             </span>
             <p className="font-inter text-label-sm text-on-surface-variant">

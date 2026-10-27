@@ -5,6 +5,18 @@ const asyncHandler = require('../utils/asyncHandler');
 const generateToken = require('../utils/generateToken');
 const Cafe = require('../models/Cafe');
 const User = require('../models/User');
+const { getEffectivePermissions } = require('../constants/permissions');
+// Billing. Every new cafe starts on the free trial, created inside the same
+// transaction as the cafe itself so a signup can never leave a tenant that
+// exists but cannot be billed or gated.
+const {
+  ensureSubscription,
+  getAccessForCafe,
+} = require('../services/subscriptionService');
+
+// Module #08 — PIN lockout policy
+const PIN_MAX_ATTEMPTS = 5;
+const PIN_LOCK_MINUTES = 15;
 
 const sanitizeUser = (user) => ({
   id: user._id,
@@ -12,6 +24,9 @@ const sanitizeUser = (user) => ({
   name: user.name,
   email: user.email,
   role: user.role,
+  permissions: getEffectivePermissions(user),
+  pinEnabled: Boolean(user.pinEnabled),
+  isActive: user.isActive !== false,
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
 });
@@ -74,6 +89,8 @@ const registerOwner = asyncHandler(async (req, res, next) => {
       );
 
       createdOwner = ownerDocs[0];
+
+      await ensureSubscription(createdCafe._id, { session });
     });
 
     const token = generateToken({
@@ -95,7 +112,14 @@ const registerOwner = asyncHandler(async (req, res, next) => {
 
 const login = asyncHandler(async (req, res) => {
   const { email, ownerEmail, password } = req.body;
-  const normalizedEmail = resolveLoginEmail({ email, ownerEmail }).trim().toLowerCase();
+  const rawEmail = resolveLoginEmail({ email, ownerEmail });
+  if (!rawEmail || typeof rawEmail !== 'string') {
+    throw new AppError('Email is required', 400);
+  }
+  if (!password || typeof password !== 'string') {
+    throw new AppError('Password is required', 400);
+  }
+  const normalizedEmail = rawEmail.trim().toLowerCase();
 
   const user = await User.findOne({ email: normalizedEmail });
 
@@ -107,6 +131,15 @@ const login = asyncHandler(async (req, res) => {
 
   if (!isPasswordValid) {
     throw new AppError('Invalid credentials', 401);
+  }
+
+  // A terminated tenant is locked out entirely, so a correct password must not
+  // mint a new token. Checked *after* the password so the response cannot be
+  // used to probe which emails belong to a suspended café.
+  const { access } = await getAccessForCafe(user.cafeId);
+
+  if (access.isTerminated) {
+    throw new AppError('This account has been suspended. Contact QRDine support.', 410);
   }
 
   const token = generateToken({
@@ -134,4 +167,97 @@ const getCurrentUser = asyncHandler(async (req, res) => {
   });
 });
 
-module.exports = { registerOwner, login, getCurrentUser };
+/**
+ * Module #08 — list the switchable operators for the current tenant.
+ * Used by the shared-terminal PIN lock screen; only exposes the minimum
+ * needed to render the operator grid (never pinHash or credentials).
+ */
+const getOperators = asyncHandler(async (req, res) => {
+  const operators = await User.find({ cafeId: req.cafeId, isActive: true })
+    .select('name role pinEnabled')
+    .sort({ createdAt: 1 });
+
+  res.status(200).json({
+    success: true,
+    operators: operators.map((u) => ({
+      id: u._id,
+      name: u.name,
+      role: u.role,
+      pinEnabled: Boolean(u.pinEnabled),
+    })),
+    currentUserId: req.user._id,
+  });
+});
+
+/**
+ * Module #08 — PIN login / operator switch on a shared terminal.
+ *
+ * The device must already hold a valid admin token (the owner logs in once with
+ * email + password); a staff member then assumes their own identity for POS and
+ * shift operations by entering their PIN. Returns a fresh JWT scoped to that
+ * staff member, so every later request carries the correct role/permissions.
+ *
+ * Brute-force protection: rate-limited per IP (pinLimiter) AND per-user lockout
+ * after PIN_MAX_ATTEMPTS consecutive failures.
+ */
+const pinLogin = asyncHandler(async (req, res) => {
+  const { userId, pin } = req.body;
+
+  if (!userId) {
+    throw new AppError('userId is required', 400);
+  }
+  if (!pin || !/^\d{4,6}$/.test(String(pin))) {
+    throw new AppError('PIN must be 4 to 6 digits', 400);
+  }
+
+  const user = await User.findOne({ _id: userId, cafeId: req.cafeId }).select('+pinHash');
+
+  if (!user || !user.isActive || !user.pinEnabled || !user.pinHash) {
+    throw new AppError('PIN login is not enabled for this operator', 403);
+  }
+
+  if (user.pinLockedUntil && user.pinLockedUntil > new Date()) {
+    const mins = Math.ceil((user.pinLockedUntil - Date.now()) / 60000);
+    throw new AppError(`PIN locked after too many attempts. Try again in ${mins} minute(s).`, 429);
+  }
+
+  const isValid = await bcrypt.compare(String(pin), user.pinHash);
+
+  if (!isValid) {
+    user.pinAttempts = (user.pinAttempts || 0) + 1;
+    if (user.pinAttempts >= PIN_MAX_ATTEMPTS) {
+      user.pinAttempts = 0;
+      user.pinLockedUntil = new Date(Date.now() + PIN_LOCK_MINUTES * 60 * 1000);
+      await user.save();
+      throw new AppError(
+        `PIN locked after ${PIN_MAX_ATTEMPTS} failed attempts. Try again in ${PIN_LOCK_MINUTES} minutes.`,
+        429
+      );
+    }
+    await user.save();
+    throw new AppError('Incorrect PIN', 401);
+  }
+
+  user.pinAttempts = 0;
+  user.pinLockedUntil = null;
+  user.lastLoginAt = new Date();
+  await user.save();
+
+  // Same lock-out rule as password login: an operator switch must not be a way
+  // back into a suspended account.
+  const { access } = await getAccessForCafe(user.cafeId);
+
+  if (access.isTerminated) {
+    throw new AppError('This account has been suspended. Contact QRDine support.', 410);
+  }
+
+  const token = generateToken({ id: user._id, cafeId: user.cafeId, role: user.role });
+
+  res.status(200).json({
+    message: 'PIN login successful',
+    token,
+    user: sanitizeUser(user),
+  });
+});
+
+module.exports = { registerOwner, login, getCurrentUser, getOperators, pinLogin };

@@ -9,6 +9,7 @@ export const getSocket = (): Socket => {
     socket = io(SOCKET_URL, {
       autoConnect: false,
       reconnectionAttempts: 5,
+      withCredentials: true,
     });
   }
   return socket;

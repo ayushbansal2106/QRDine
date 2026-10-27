@@ -9,6 +9,7 @@ import { TableAnalytics } from "./TableAnalytics";
 import { SessionAnalytics } from "./SessionAnalytics";
 import { CustomerAnalytics } from "./CustomerAnalytics";
 import { PaymentAnalytics } from "./PaymentAnalytics";
+import { OperationsInsights } from "./OperationsInsights";
 
 const tabs = [
   { id: "overview", label: "Overview", icon: "dashboard" },
@@ -19,6 +20,7 @@ const tabs = [
   { id: "sessions", label: "Sessions", icon: "schedule" },
   { id: "customers", label: "Customers", icon: "groups" },
   { id: "payments", label: "Payments", icon: "credit_card" },
+  { id: "operations", label: "Operations", icon: "query_stats" },
 ] as const;
 
 type TabId = (typeof tabs)[number]["id"];
@@ -44,6 +46,8 @@ export const AnalyticsDashboardClient: React.FC = () => {
         return <CustomerAnalytics />;
       case "payments":
         return <PaymentAnalytics />;
+      case "operations":
+        return <OperationsInsights />;
       default:
         return null;
     }

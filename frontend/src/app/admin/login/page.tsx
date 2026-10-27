@@ -1,80 +1,108 @@
 "use client";
 
-import React, { useActionState } from "react";
-import { loginAdmin } from "@/actions/auth";
-import { Button } from "@/components/common/Button";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { apiClient } from "@/lib/apiClient";
 
-const initialState = {
-  error: "",
-};
+export default function SuperAdminLogin() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-export default function AdminLoginPage() {
-  const [state, formAction, isPending] = useActionState(loginAdmin, initialState);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    try {
+      // The superadmin endpoints live under /api/superadmin, not /admin
+      const { data } = await apiClient.post("/superadmin/login", {
+        email,
+        password,
+      });
+
+      if (data.token) {
+        // Set cookie via document.cookie for client-side persistence
+        // Note: This is a plain cookie (not httpOnly) so the layout can read it
+        document.cookie = `superadmin_token=${data.token}; path=/; max-age=86400; SameSite=Strict`;
+        router.push("/admin");
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data?.message || "Invalid super admin credentials."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-margin-mobile">
-      <div className="bg-surface-container-lowest w-full max-w-[400px] rounded-xl p-lg shadow-[0px_12px_32px_rgba(0,0,0,0.08)] flex flex-col font-inter">
-        {/* Brand/Logo Header */}
-        <div className="flex flex-col items-center gap-xs text-center mb-lg">
-          <div className="w-12 h-12 bg-primary/10 text-primary rounded-full flex items-center justify-center shadow-[0px_4px_12px_rgba(81,96,79,0.1)]">
-            <span className="material-symbols-outlined text-[28px] select-none">
-              restaurant
-            </span>
+    <div className="min-h-screen bg-[#1b1c1c] flex flex-col justify-center items-center p-4 selection:bg-[#51604f] selection:text-white">
+      <div className="w-full        max-w-admin bg-[#2a2c2c] p-8 sm:p-10 rounded-[24px] shadow-2xl border border-[#444842]">
+        <div className="mb-8 text-center">
+          <div className="w-12 h-12 rounded-full bg-[#51604f] flex items-center justify-center mx-auto mb-4">
+            <span className="material-symbols-outlined text-white">shield_person</span>
           </div>
-          <h2 className="font-semibold text-headline-lg text-primary mt-sm">
-            QRDine Admin
-          </h2>
-          <p className="text-body-sm text-on-surface-variant">
-            Please log in with your credentials to access dashboards.
-          </p>
+          <h1 className="text-2xl font-bold text-white tracking-tight">Platform Control</h1>
+          <p className="mt-2 text-[#e1dfdb]">QRDine Super Admin</p>
         </div>
 
-        {/* Form */}
-        <form action={formAction} className="flex flex-col gap-md">
-          {state?.error && (
-            <div className="bg-error/10 border border-error/20 text-error text-body-sm rounded-lg p-sm font-semibold flex items-center gap-xs">
-              <span className="material-symbols-outlined text-[18px]">error</span>
-              {state.error}
-            </div>
-          )}
+        {error && (
+          <div className="mb-6 p-4 bg-[#ba1a1a]/20 border border-[#ba1a1a]/50 rounded-xl flex items-start gap-3">
+            <span className="material-symbols-outlined text-[#ff8989]">error</span>
+            <p className="text-sm text-[#ff8989]">{error}</p>
+          </div>
+        )}
 
-          <div className="flex flex-col gap-xs">
-            <label htmlFor="email" className="font-semibold text-label-md text-on-surface">
-              Email Address
-            </label>
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <label className="block text-sm text-[#e1dfdb] mb-1.5 font-medium">Platform Email</label>
             <input
-              id="email"
-              name="email"
               type="email"
               required
-              placeholder="e.g. admin@qrdine.com"
-              className="bg-surface-container-low rounded-lg p-sm border-none text-body-md text-on-surface placeholder-on-surface-variant/40 focus:ring-1 focus:ring-primary outline-none"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="admin@qrdine.com"
+              className="w-full px-4 py-3 rounded-xl bg-[#1b1c1c] border border-[#444842] focus:outline-none focus:border-[#51604f] focus:ring-1 focus:ring-[#51604f] transition-all text-white placeholder-[#5e5e5b]"
             />
           </div>
 
-          <div className="flex flex-col gap-xs">
-            <label htmlFor="password" className="font-semibold text-label-md text-on-surface">
-              Password
-            </label>
+          <div>
+            <label className="block text-sm text-[#e1dfdb] mb-1.5 font-medium">Secure Password</label>
             <input
-              id="password"
-              name="password"
               type="password"
               required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="bg-surface-container-low rounded-lg p-sm border-none text-body-md text-on-surface placeholder-on-surface-variant/40 focus:ring-1 focus:ring-primary outline-none"
+              className="w-full px-4 py-3 rounded-xl bg-[#1b1c1c] border border-[#444842] focus:outline-none focus:border-[#51604f] focus:ring-1 focus:ring-[#51604f] transition-all text-white placeholder-[#5e5e5b]"
             />
           </div>
 
-          <Button type="submit" variant="primary" fullWidth className="h-11 mt-sm" disabled={isPending}>
-            {isPending ? "Logging in..." : "Log In"}
-          </Button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-[#51604f] text-white font-semibold rounded-xl py-3 hover:bg-[#6a7967] transition-all flex items-center justify-center gap-2 mt-4 disabled:opacity-70 disabled:pointer-events-none"
+          >
+            {loading ? (
+              <>
+                <span className="material-symbols-outlined animate-spin">progress_activity</span>
+                Authenticating...
+              </>
+            ) : (
+              "Sign In to Control Plane"
+            )}
+          </button>
         </form>
 
-        <div className="text-center mt-lg border-t border-surface-container pt-md">
-          <span className="text-body-sm text-on-surface-variant/60">
-            Need an account? Contact your administrator.
-          </span>
+        <div className="mt-8 text-center border-t border-[#444842] pt-6">
+          <Link href="/" className="text-sm text-[#5e5e5b] hover:text-white transition-colors">
+            &larr; Return to public site
+          </Link>
         </div>
       </div>
     </div>

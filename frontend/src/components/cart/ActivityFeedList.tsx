@@ -2,6 +2,7 @@
 
 import React from "react";
 import { useSessionStore } from "@/store/sessionStore";
+import { formatTime } from "@/lib/format";
 
 export const ActivityFeedList: React.FC = () => {
   const { activityFeed } = useSessionStore();
@@ -21,7 +22,7 @@ export const ActivityFeedList: React.FC = () => {
       <div className="flex flex-col gap-3">
         {recentActivities.map((activity, index) => {
           const date = new Date(activity.timestamp);
-          const timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const timeString = formatTime(date);
 
           let icon = "info";
           switch (activity.type) {

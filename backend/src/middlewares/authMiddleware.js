@@ -6,15 +6,20 @@ const asyncHandler = require('../utils/asyncHandler');
 const User = require('../models/User');
 
 const protect = asyncHandler(async (req, res, next) => {
-  const authHeader = req.headers.authorization;
+  let token = null;
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  } else if (req.cookies && req.cookies.admin_token) {
+    token = req.cookies.admin_token;
+  }
+
+  if (!token) {
     throw new AppError('Not authorized, token missing', 401);
   }
 
-  const token = authHeader.split(' ')[1];
-
-  if (!token || token.split('.').length !== 3) {
+  if (token.split('.').length !== 3) {
     throw new AppError(
       'Invalid auth token. Use the JWT returned by POST /api/auth/login, not JWT_SECRET from .env.',
       401
