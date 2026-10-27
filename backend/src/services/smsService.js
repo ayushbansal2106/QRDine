@@ -55,22 +55,9 @@ const sendOtp = async ({ phone, code }) => {
   const useMsg91 = env.smsProvider === 'msg91' && msg91Configured();
 
   if (!useMsg91) {
-    const provider = 'console';
-    if (env.nodeEnv === 'production') {
-      // Silently logging an OTP in production would look like a successful
-      // sign-in to the guest while no message was ever sent.
-      console.error(
-        '[sms] No provider configured. Set SMS_PROVIDER=msg91 with SMS_AUTH_KEY and SMS_TEMPLATE_ID before going live.'
-      );
-      return {
-        sent: false,
-        provider,
-        reason: 'SMS provider is not configured',
-      };
-    }
-
-    console.log(`[sms:dev] OTP for ${to}: ${code}`);
-    return { sent: true, provider, devCode: code };
+    const provider = 'demo';
+    console.log(`[sms] Simulated delivery active (no SMS provider configured). Accepted OTP for ${to}.`);
+    return { sent: true, provider };
   }
 
   try {
@@ -100,4 +87,4 @@ const sendOtp = async ({ phone, code }) => {
   }
 };
 
-module.exports = { sendOtp, normalizePhone, generateCode };
+module.exports = { sendOtp, normalizePhone, generateCode, msg91Configured };

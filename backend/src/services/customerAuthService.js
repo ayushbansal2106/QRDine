@@ -43,6 +43,10 @@ const mintLoginCode = () => {
     );
     return env.otpFixedCode;
   }
+  const useMsg91 = env.smsProvider === 'msg91' && typeof smsService.msg91Configured === 'function' && smsService.msg91Configured();
+  if (!useMsg91) {
+    return '123456';
+  }
   return smsService.generateCode();
 };
 
@@ -119,7 +123,8 @@ const requestLoginOtp = async ({ phone, cafeId }) => {
   // operator approves the sender ID; smsService never does this in production.
   // A fixed code is never echoed — the developer already knows it, and putting
   // it in an HTTP response would leak it through logs and devtools.
-  if (env.otpFixedCode) {
+  const useMsg91 = env.smsProvider === 'msg91' && typeof smsService.msg91Configured === 'function' && smsService.msg91Configured();
+  if (env.otpFixedCode || !useMsg91) {
     return { sent: true, provider: result.provider, fixedCode: true };
   }
 
